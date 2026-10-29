@@ -1,5 +1,5 @@
 // เปลี่ยนเลขเวอร์ชันทุกครั้งที่อัปเดตไฟล์ เพื่อให้เครื่องผู้ใช้โหลดของใหม่
-const CACHE_NAME = 'sgpro-v2.7.0';
+const CACHE_NAME = 'sgpro-v2.9.0';
 
 // ใช้ path แบบ relative เพื่อให้ทำงานได้แม้ host อยู่ใน sub-folder (เช่น GitHub Pages)
 const ASSETS = [
@@ -9,6 +9,8 @@ const ASSETS = [
     './script.js',
     './log.js',
     './ble-transport.js',
+    './maptable.js',
+    './gps.js',
     './vendor/swiper/swiper-bundle.min.js',
     './vendor/swiper/swiper-bundle.min.css',
     './manifest.json',

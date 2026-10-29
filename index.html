@@ -344,42 +344,42 @@
                 <div class="swiper-slide slide-gps">
                     <div class="gps-layout">
                         <div class="gps-main-panel">
-                            <div class="gps-signal" data-i18n="weak_signal">WEAK ±80 M</div>
+                            <div class="gps-signal" id="gps-signal">GPS OFF</div>
                             <div class="gps-speed-display">
-                                <span class="gps-speed-val">0</span>
+                                <span class="gps-speed-val" id="gps-speed">0</span>
                                 <span class="gps-speed-unit">km/h</span>
                             </div>
                             <div class="gps-trip-main"><span data-i18n="trip">TRIP</span> <span
-                                    class="white">0.00</span> KM</div>
+                                    class="white" id="gps-trip-main">0.00</span> KM</div>
                             <div class="gps-btn-group">
-                                <button class="gps-btn yellow-btn" data-i18n="gps_on">GPS ON</button>
-                                <button class="gps-btn red-btn" data-i18n="reset">RESET</button>
+                                <button class="gps-btn yellow-btn" id="btn-gps-toggle" data-i18n="gps_on">GPS ON</button>
+                                <button class="gps-btn red-btn" id="btn-gps-reset" data-i18n="reset">RESET</button>
                             </div>
                         </div>
                         <div class="gps-side-grid">
                             <div class="gps-small-panel">
                                 <div class="gps-lbl" data-i18n="max">MAX</div>
-                                <div class="gps-s-val">0 <span class="gps-s-unit">km/h</span></div>
+                                <div class="gps-s-val"><span id="gps-max">0</span> <span class="gps-s-unit">km/h</span></div>
                             </div>
                             <div class="gps-small-panel">
                                 <div class="gps-lbl" data-i18n="avg">AVG</div>
-                                <div class="gps-s-val">0 <span class="gps-s-unit">km/h</span></div>
+                                <div class="gps-s-val"><span id="gps-avg">0</span> <span class="gps-s-unit">km/h</span></div>
                             </div>
                             <div class="gps-small-panel">
                                 <div class="gps-lbl" data-i18n="trip">TRIP</div>
-                                <div class="gps-s-val">0.00 <span class="gps-s-unit">km</span></div>
+                                <div class="gps-s-val"><span id="gps-trip">0.00</span> <span class="gps-s-unit">km</span></div>
                             </div>
                             <div class="gps-small-panel">
                                 <div class="gps-lbl" data-i18n="heading">HEADING</div>
-                                <div class="gps-s-val">- <span class="gps-s-unit">°</span></div>
+                                <div class="gps-s-val"><span id="gps-heading">-</span> <span class="gps-s-unit">°</span></div>
                             </div>
                             <div class="gps-small-panel">
                                 <div class="gps-lbl" data-i18n="altitude">ALTITUDE</div>
-                                <div class="gps-s-val">- <span class="gps-s-unit">m</span></div>
+                                <div class="gps-s-val"><span id="gps-alt">-</span> <span class="gps-s-unit">m</span></div>
                             </div>
                             <div class="gps-small-panel">
                                 <div class="gps-lbl" data-i18n="time">TIME</div>
-                                <div class="gps-s-val">0:00:00</div>
+                                <div class="gps-s-val" id="gps-time">0:00:00</div>
                             </div>
                         </div>
                     </div>
@@ -389,52 +389,52 @@
                 <div class="swiper-slide slide-drag">
                     <div class="gps-layout">
                         <div class="gps-main-panel drag-main">
-                            <div class="drag-status" data-i18n="armed">ARMED</div>
+                            <div class="drag-status" id="drag-status">READY</div>
                             <div class="drag-time-display">
-                                <span class="drag-time-val">0.00</span>
+                                <span class="drag-time-val" id="drag-time">0.00</span>
                                 <div class="drag-time-lbl" data-i18n="elapsed_time">ELAPSED TIME (S)</div>
                             </div>
                             <div class="drag-live-data">
-                                <span><span data-i18n="speed">SPEED</span> <span class="white">0</span> km/h</span>
-                                <span><span data-i18n="dist">DIST</span> <span class="white">0</span> m</span>
+                                <span><span data-i18n="speed">SPEED</span> <span class="white" id="drag-speed">0</span> km/h</span>
+                                <span><span data-i18n="dist">DIST</span> <span class="white" id="drag-dist">0</span> m</span>
                             </div>
                             <div class="drag-btn-group">
-                                <button class="drag-btn red-btn" data-i18n="reset">RESET</button>
-                                <button class="drag-btn dark-btn" data-i18n="save">SAVE</button>
-                                <button class="drag-btn dark-btn" data-i18n="runs">RUNS</button>
-                                <button class="drag-btn yellow-btn" data-i18n="arm">ARM</button>
+                                <button class="drag-btn red-btn" id="btn-drag-reset" data-i18n="reset">RESET</button>
+                                <button class="drag-btn dark-btn" id="btn-drag-save" data-i18n="save">SAVE</button>
+                                <button class="drag-btn dark-btn" id="btn-drag-runs" data-i18n="runs">RUNS</button>
+                                <button class="drag-btn yellow-btn" id="btn-drag-arm" data-i18n="arm">ARM</button>
                             </div>
                         </div>
                         <div class="gps-side-grid">
                             <div class="gps-small-panel drag-panel">
                                 <div class="gps-lbl">60 FT</div>
-                                <div class="gps-s-val">- <span class="gps-s-unit">s</span></div>
-                                <div class="drag-bar"></div>
+                                <div class="gps-s-val"><span id="drag-t-60">-</span> <span class="gps-s-unit">s</span></div>
+                                <div class="drag-bar" id="drag-bar-60"></div>
                             </div>
                             <div class="gps-small-panel drag-panel">
                                 <div class="gps-lbl">100 M</div>
-                                <div class="gps-s-val">- <span class="gps-s-unit">s</span></div>
-                                <div class="drag-bar"></div>
+                                <div class="gps-s-val"><span id="drag-t-100">-</span> <span class="gps-s-unit">s</span></div>
+                                <div class="drag-bar" id="drag-bar-100"></div>
                             </div>
                             <div class="gps-small-panel drag-panel">
                                 <div class="gps-lbl">201 M</div>
-                                <div class="gps-s-val">- <span class="gps-s-unit">s</span></div>
-                                <div class="drag-bar"></div>
+                                <div class="gps-s-val"><span id="drag-t-201">-</span> <span class="gps-s-unit">s</span></div>
+                                <div class="drag-bar" id="drag-bar-201"></div>
                             </div>
                             <div class="gps-small-panel drag-panel">
                                 <div class="gps-lbl">402 M</div>
-                                <div class="gps-s-val">- <span class="gps-s-unit">s</span></div>
-                                <div class="drag-bar"></div>
+                                <div class="gps-s-val"><span id="drag-t-402">-</span> <span class="gps-s-unit">s</span></div>
+                                <div class="drag-bar" id="drag-bar-402"></div>
                             </div>
                             <div class="gps-small-panel drag-panel">
                                 <div class="gps-lbl">600 M</div>
-                                <div class="gps-s-val">- <span class="gps-s-unit">s</span></div>
-                                <div class="drag-bar"></div>
+                                <div class="gps-s-val"><span id="drag-t-600">-</span> <span class="gps-s-unit">s</span></div>
+                                <div class="drag-bar" id="drag-bar-600"></div>
                             </div>
                             <div class="gps-small-panel drag-panel">
                                 <div class="gps-lbl">1000 M</div>
-                                <div class="gps-s-val">- <span class="gps-s-unit">s</span></div>
-                                <div class="drag-bar"></div>
+                                <div class="gps-s-val"><span id="drag-t-1000">-</span> <span class="gps-s-unit">s</span></div>
+                                <div class="drag-bar" id="drag-bar-1000"></div>
                             </div>
                         </div>
                     </div>
@@ -484,7 +484,67 @@
                     </div>
                 </div>
 
-                <!-- Slide 6: SETTINGS -->
+                <!-- Slide 6: MAP TABLE (ตารางจูนแบบ TunePro — ยังไม่เขียนลงกล่อง) -->
+                <div class="swiper-slide slide-map">
+                    <div class="map-layout swiper-no-swiping" id="map-layout">
+                        <aside class="map-sidebar">
+                            <button class="map-sb-toggle" id="map-sb-toggle" aria-label="Toggle sidebar">☰</button>
+                            <div class="map-sb-body">
+                                <div class="map-sb-title">▦ ตารางจูน</div>
+                                <div id="map-tab-list"></div>
+                                <div class="map-live">
+                                    <div><span>RPM</span><b id="map-live-rpm">--</b></div>
+                                    <div><span>TPS %</span><b id="map-live-tps">--</b></div>
+                                    <div><span>INJ ms</span><b id="map-live-inj">--</b></div>
+                                    <div><span>IGN °</span><b id="map-live-igt">--</b></div>
+                                    <div><span>AFR</span><b id="map-live-afr">--</b></div>
+                                </div>
+                                <button class="map-reset" id="map-reset">ล้างค่า Log</button>
+                            </div>
+                        </aside>
+                        <div class="map-main">
+                            <div class="map-toolbar">
+                                <select class="map-tb map-select" id="map-select"></select>
+                                <button class="map-tb map-ok" id="map-apply" title="บันทึกการแก้">✔</button>
+                                <button class="map-tb map-no" id="map-cancel" title="ยกเลิกการแก้">✖</button>
+                                <div class="map-dd">
+                                    <button class="map-tb" id="map-adjust-btn">✎ ปรับค่า ▾</button>
+                                    <div class="map-adjust" id="map-adjust">
+                                        <button data-op="copy">ก๊อบ</button>
+                                        <button data-op="paste">วาง</button>
+                                        <button data-op="set">ใส่ค่า</button>
+                                        <button data-op="dec">−</button>
+                                        <button data-op="inc">+</button>
+                                        <button data-op="pct">%</button>
+                                        <button data-op="ix">X</button>
+                                        <button data-op="iy">Y</button>
+                                        <button data-op="ixy">XY</button>
+                                        <button data-op="smooth">∿</button>
+                                    </div>
+                                </div>
+                                <button class="map-tb" id="map-range" title="เลือกเป็นช่วง">⬚ ช่วง</button>
+                                <button class="map-tb" id="map-undo" title="Undo">↶</button>
+                                <button class="map-tb" id="map-redo" title="Redo">↷</button>
+                                <button class="map-tb" id="map-fit">⛶ FIT</button>
+                                <button class="map-tb" id="map-3d">◭ 3D</button>
+                                <button class="map-tb on" id="map-rt">∿ REAL TIME</button>
+                            </div>
+                            <div class="map-head">
+                                <span class="map-title" id="map-title"></span>
+                                <span class="map-note" id="map-note"></span>
+                            </div>
+                            <div class="map-view">
+                                <div class="map-grid-wrap" id="map-grid-wrap">
+                                    <table class="map-grid" id="map-grid"></table>
+                                </div>
+                                <canvas class="map-3d" id="map-canvas3d" hidden></canvas>
+                                <div class="map-legend"><div class="map-legend-bar"></div><div class="map-legend-lbl"><span id="map-lg-min">-</span><span id="map-lg-mid">-</span><span id="map-lg-max">-</span></div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 7: SETTINGS -->
                 <div class="swiper-slide slide-settings">
                     <div class="settings-layout">
                         <div class="settings-col">
@@ -789,6 +849,8 @@
     <script src="log.js"></script>
     <script src="ble-transport.js"></script>
     <script src="script.js"></script>
+    <script src="maptable.js"></script>
+    <script src="gps.js"></script>
 </body>
 
 </html>
