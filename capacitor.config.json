@@ -1,0 +1,10 @@
+{
+  "appId": "com.smartgate.sgpro",
+  "appName": "SGPro",
+  "webDir": "www",
+  "backgroundColor": "#050810",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#050810"
+  }
+}

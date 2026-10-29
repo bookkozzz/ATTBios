@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+
+    <title>Smartgate Pro</title>
+    <meta name="description" content="Smartgate Pro - OBD2 ELM327 Dashboard for real-time vehicle diagnostics">
+    <link rel="manifest" href="manifest.json">
+
+    <!-- ═══ FULLSCREEN / STANDALONE META TAGS ═══ -->
+    <!-- iOS (Safari + Bluefy + WebBLE) -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SGPro">
+    <!-- iOS ไม่รองรับไอคอน SVG บนหน้าจอโฮม ต้องเป็น PNG -->
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+
+    <!-- Android / Chrome -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Smartgate Pro">
+
+    <!-- ซ่อน UI chrome บน browser ต่างๆ -->
+    <meta name="theme-color" content="#050810">
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#050810">
+    <meta name="background-color" content="#050810">
+
+    <!-- ป้องกัน iOS เด้ง address bar และ rubber-band scroll -->
+    <meta name="format-detection" content="telephone=no">
+    <meta name="HandheldFriendly" content="true">
+    <meta name="MobileOptimized" content="width">
+
+    <!-- Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Prompt:wght@400;600&family=Teko:wght@500;700&display=swap"
+        rel="stylesheet">
+    <!-- Swiper CSS -->
+    <link rel="stylesheet" href="vendor/swiper/swiper-bundle.min.css" />
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div class="pagination-dots"></div>
+            <div class="screen-title" id="screen-title">TACHOMETER</div>
+
+            <div class="top-right-controls">
+                <!-- Vehicle Mode Switcher -->
+                <div class="vehicle-mode-switch" id="vehicle-mode-switch">
+                    <button class="mode-btn" data-mode="PVX150">PVX150</button>
+                    <button class="mode-btn" data-mode="PCX150">PCX150</button>
+                    <button class="mode-btn active" data-mode="PCX160">PCX160</button>
+                </div>
+                <div class="lang-toggle" id="btn-lang">TH</div>
+                <div class="lang-toggle fs-toggle" id="btn-fullscreen" title="เต็มจอ" aria-label="เต็มจอ">⛶</div>
+                <div class="bt-indicator" id="btn-bluetooth" style="cursor: pointer;">
+                    <div class="bt-led" id="bt-led"></div>
+                    <div class="bt-btn">BT</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Swiper Container -->
+        <div class="swiper mySwiper">
+            <div class="swiper-wrapper">
+
+                <!-- Slide 1: TACHOMETER -->
+                <div class="swiper-slide slide-tachometer">
+                    <div class="tacho-layout">
+                        <!-- Left Panels -->
+                        <div class="side-panels left-panels">
+                            <div class="data-panel">
+                                <div class="panel-header"><span class="label" data-i18n="inj">INJ</span></div>
+                                <div class="panel-body"><span class="value" id="val-inj">0.0</span> <span
+                                        class="unit">ms</span></div>
+                                <div class="progress-bar">
+                                    <div class="fill" id="bar-inj" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                            <div class="data-panel">
+                                <div class="panel-header"><span class="label" data-i18n="speed">SPEED</span></div>
+                                <div class="panel-body"><span class="value" id="val-speed1">0</span> <span
+                                        class="unit">km/h</span></div>
+                                <div class="progress-bar">
+                                    <div class="fill" id="bar-speed" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                            <div class="data-panel">
+                                <div class="panel-header"><span class="label" data-i18n="tps">TPS</span></div>
+                                <div class="panel-body"><span class="value" id="val-tps1">0.0</span> <span
+                                        class="unit">%</span></div>
+                                <div class="progress-bar">
+                                    <div class="fill" id="bar-tps" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                            <div class="data-panel">
+                                <div class="panel-header"><span class="label" data-i18n="batt">BATT</span></div>
+                                <div class="panel-body"><span class="value" id="val-batt1">0.0</span> <span
+                                        class="unit">V</span></div>
+                                <div class="progress-bar">
+                                    <div class="fill" id="bar-batt1" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Center Column: HUD + Gauges + TPS Bar -->
+                        <div class="center-column">
+
+                            <!-- HUD VISUALIZER (above gauges) -->
+                            <div class="hud-panel">
+                                <div class="hud-tabs">
+                                    <button class="hud-tab active" data-view="graph">📈 GRAPH</button>
+                                    <button class="hud-tab" data-view="cluster">🖥 CLUSTER</button>
+                                    <button class="hud-tab" data-view="strip">⬛ SHIFT LED</button>
+                                </div>
+                                <div class="hud-view active" id="hud-view-graph">
+                                    <canvas id="hudGraphCanvas"></canvas>
+                                </div>
+                                <div class="hud-view" id="hud-view-cluster">
+                                    <div class="cluster-ribbon">
+                                        <div class="c-cell">
+                                            <div class="c-lbl">GEAR</div>
+                                            <div class="c-val" id="c-ratio">--</div>
+                                        </div>
+                                        <div class="c-cell">
+                                            <div class="c-lbl">TPS</div>
+                                            <div class="c-val" id="c-tps">0%</div>
+                                        </div>
+                                        <div class="c-cell">
+                                            <div class="c-lbl">LOAD</div>
+                                            <div class="c-val" id="c-load">0%</div>
+                                        </div>
+                                        <div class="c-cell">
+                                            <div class="c-lbl">MAP</div>
+                                            <div class="c-val" id="c-map">0kPa</div>
+                                        </div>
+                                        <div class="c-cell">
+                                            <div class="c-lbl">e-HP</div>
+                                            <div class="c-val" id="c-hp">0HP</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="hud-view" id="hud-view-strip">
+                                    <div class="rpm-strip-leds" id="rpm-strip-leds"></div>
+                                </div>
+                            </div>
+
+                            <!-- Center Dual Gauge -->
+                            <div class="center-gauge">
+                                <div class="gauge-wrap">
+                                    <canvas id="speedCanvas" class="gauge-canvas"></canvas>
+                                    <div class="gauge-center-text">
+                                        <div class="speed-unit-top">KM/H</div>
+                                        <div class="speed-val" id="val-speed-gauge">0</div>
+                                    </div>
+                                    <div class="gauge-min-max"><span>0</span><span>240</span></div>
+                                </div>
+                                <div class="gauge-wrap">
+                                    <canvas id="rpmCanvas" class="gauge-canvas"></canvas>
+                                    <div class="gauge-center-text">
+                                        <div class="speed-unit-top">RPM</div>
+                                        <div class="speed-val" id="val-rpm-center">0</div>
+                                    </div>
+                                    <div class="gauge-min-max"><span>0</span><span>8K</span></div>
+                                </div>
+                            </div>
+
+                            <!-- TPS Throttle Position Bar -->
+                            <div class="tps-bar-area">
+                                <div class="tps-bar-label">
+                                    <span class="tps-bar-title">TPS</span>
+                                    <span class="tps-bar-val" id="val-tps-center">0.0</span>
+                                    <span class="tps-bar-unit">%</span>
+                                </div>
+                                <div class="tps-bar-track">
+                                    <div class="tps-bar-fill" id="bar-tps-center" style="width:0%"></div>
+                                    <div class="tps-bar-segments"></div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- Right Panels -->
+                        <div class="side-panels right-panels">
+                            <div class="data-panel">
+                                <div class="panel-header right-align"><span class="label" data-i18n="afr">AFR</span>
+                                </div>
+                                <div class="panel-body"><span class="value" id="val-afr1">0.0</span> <span
+                                        class="unit">λ</span></div>
+                                <div class="progress-bar">
+                                    <div class="fill" id="bar-afr" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                            <div class="data-panel">
+                                <div class="panel-header right-align"><span class="label" data-i18n="eot">EOT</span>
+                                </div>
+                                <div class="panel-body"><span class="value" id="val-eot1">0</span> <span
+                                        class="unit">°C</span></div>
+                                <div class="progress-bar">
+                                    <div class="fill" id="bar-eot" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                            <div class="data-panel">
+                                <div class="panel-header right-align"><span class="label" data-i18n="igt">IGT</span>
+                                </div>
+                                <div class="panel-body"><span class="value" id="val-igt1">0.0</span> <span
+                                        class="unit">°</span></div>
+                                <div class="progress-bar">
+                                    <div class="fill" id="bar-igt" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                            <div class="data-panel">
+                                <div class="panel-header right-align"><span class="label" data-i18n="duty">DUTY</span>
+                                </div>
+                                <div class="panel-body"><span class="value" id="val-duty1">0.0</span> <span
+                                        class="unit">%</span></div>
+                                <div class="progress-bar">
+                                    <div class="fill" id="bar-duty" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 2: LIVE DATA -->
+                <div class="swiper-slide slide-livedata">
+                    <div class="live-data-grid">
+                        <div class="grid-panel">
+                            <div class="g-head"><span class="g-label" data-i18n="rpm">RPM</span></div>
+                            <div class="g-val" id="ld-rpm">0<span class="g-unit">rpm</span></div>
+                            <div class="g-bar">
+                                <div class="g-fill" id="lb-rpm" style="width:0%"></div>
+                            </div>
+                        </div>
+                        <div class="grid-panel">
+                            <div class="g-head"><span class="g-label" data-i18n="speed">SPEED</span></div>
+                            <div class="g-val" id="ld-speed">0<span class="g-unit">km/h</span></div>
+                            <div class="g-bar">
+                                <div class="g-fill" id="lb-speed" style="width:0%"></div>
+                            </div>
+                        </div>
+                        <div class="grid-panel">
+                            <div class="g-head"><span class="g-label" data-i18n="tps">TPS</span></div>
+                            <div class="g-val" id="ld-tps">0.0<span class="g-unit">%</span></div>
+                            <div class="g-bar">
+                                <div class="g-fill" id="lb-tps" style="width:0%"></div>
+                            </div>
+                        </div>
+                        <div class="grid-panel">
+                            <div class="g-head"><span class="g-label" data-i18n="eot">EOT</span></div>
+                            <div class="g-val" id="ld-eot">0<span class="g-unit">°C</span></div>
+                            <div class="g-bar">
+                                <div class="g-fill" id="lb-eot" style="width:0%"></div>
+                            </div>
+                        </div>
+                        <div class="grid-panel">
+                            <div class="g-head"><span class="g-label" data-i18n="iat">IAT</span></div>
+                            <div class="g-val" id="ld-iat">0<span class="g-unit">°C</span></div>
+                            <div class="g-bar">
+                                <div class="g-fill" id="lb-iat" style="width:0%"></div>
+                            </div>
+                        </div>
+
+                        <div class="grid-panel">
+                            <div class="g-head"><span class="g-label" data-i18n="map">MAP</span></div>
+                            <div class="g-val" id="ld-map">0<span class="g-unit">kPa</span></div>
+                            <div class="g-bar">
+                                <div class="g-fill" id="lb-map" style="width:0%"></div>
+                            </div>
+                        </div>
+                        <div class="grid-panel">
+                            <div class="g-head"><span class="g-label" data-i18n="batt">BATT</span></div>
+                            <div class="g-val" id="ld-batt">0.0<span class="g-unit">V</span></div>
+                            <div class="g-bar">
+                                <div class="g-fill" id="lb-batt" style="width:0%"></div>
+                            </div>
+                        </div>
+                        <div class="grid-panel">
+                            <div class="g-head"><span class="g-label" data-i18n="inj">INJ</span></div>
+                            <div class="g-val" id="ld-inj">0.0<span class="g-unit">ms</span></div>
+                            <div class="g-bar">
+                                <div class="g-fill" id="lb-inj" style="width:0%"></div>
+                            </div>
+                        </div>
+                        <div class="grid-panel">
+                            <div class="g-head"><span class="g-label" data-i18n="igt">IGT</span></div>
+                            <div class="g-val" id="ld-igt">0.0<span class="g-unit">°</span></div>
+                            <div class="g-bar">
+                                <div class="g-fill" id="lb-igt" style="width:0%"></div>
+                            </div>
+                        </div>
+                        <div class="grid-panel">
+                            <div class="g-head"><span class="g-label" data-i18n="afr">AFR</span></div>
+                            <div class="g-val" id="ld-afr">0.0<span class="g-unit">λ</span></div>
+                            <div class="g-bar">
+                                <div class="g-fill" id="lb-afr" style="width:0%"></div>
+                            </div>
+                        </div>
+
+                        <div class="grid-panel">
+                            <div class="g-head"><span class="g-label" data-i18n="o2">O2</span></div>
+                            <div class="g-val" id="ld-o2">0.00<span class="g-unit">V</span></div>
+                            <div class="g-bar">
+                                <div class="g-fill" id="lb-o2" style="width:0%"></div>
+                            </div>
+                        </div>
+                        <div class="grid-panel">
+                            <div class="g-head"><span class="g-label" data-i18n="stft">STFT</span></div>
+                            <div class="g-val" id="ld-stft">0.0<span class="g-unit">%</span></div>
+                            <div class="g-bar">
+                                <div class="g-fill" id="lb-stft" style="width:0%"></div>
+                            </div>
+                        </div>
+                        <div class="grid-panel">
+                            <div class="g-head"><span class="g-label" data-i18n="ltft">LTFT</span></div>
+                            <div class="g-val" id="ld-ltft">0.0<span class="g-unit">%</span></div>
+                            <div class="g-bar">
+                                <div class="g-fill" id="lb-ltft" style="width:0%"></div>
+                            </div>
+                        </div>
+                        <div class="grid-panel">
+                            <div class="g-head"><span class="g-label" data-i18n="duty">DUTY</span></div>
+                            <div class="g-val" id="ld-duty">0.0<span class="g-unit">%</span></div>
+                            <div class="g-bar">
+                                <div class="g-fill" id="lb-duty" style="width:0%"></div>
+                            </div>
+                        </div>
+                        <div class="grid-panel">
+                            <div class="g-head"><span class="g-label" data-i18n="load">LOAD</span></div>
+                            <div class="g-val" id="ld-load">0<span class="g-unit">%</span></div>
+                            <div class="g-bar">
+                                <div class="g-fill" id="lb-load" style="width:0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 3: GPS METER -->
+                <div class="swiper-slide slide-gps">
+                    <div class="gps-layout">
+                        <div class="gps-main-panel">
+                            <div class="gps-signal" data-i18n="weak_signal">WEAK ±80 M</div>
+                            <div class="gps-speed-display">
+                                <span class="gps-speed-val">0</span>
+                                <span class="gps-speed-unit">km/h</span>
+                            </div>
+                            <div class="gps-trip-main"><span data-i18n="trip">TRIP</span> <span
+                                    class="white">0.00</span> KM</div>
+                            <div class="gps-btn-group">
+                                <button class="gps-btn yellow-btn" data-i18n="gps_on">GPS ON</button>
+                                <button class="gps-btn red-btn" data-i18n="reset">RESET</button>
+                            </div>
+                        </div>
+                        <div class="gps-side-grid">
+                            <div class="gps-small-panel">
+                                <div class="gps-lbl" data-i18n="max">MAX</div>
+                                <div class="gps-s-val">0 <span class="gps-s-unit">km/h</span></div>
+                            </div>
+                            <div class="gps-small-panel">
+                                <div class="gps-lbl" data-i18n="avg">AVG</div>
+                                <div class="gps-s-val">0 <span class="gps-s-unit">km/h</span></div>
+                            </div>
+                            <div class="gps-small-panel">
+                                <div class="gps-lbl" data-i18n="trip">TRIP</div>
+                                <div class="gps-s-val">0.00 <span class="gps-s-unit">km</span></div>
+                            </div>
+                            <div class="gps-small-panel">
+                                <div class="gps-lbl" data-i18n="heading">HEADING</div>
+                                <div class="gps-s-val">- <span class="gps-s-unit">°</span></div>
+                            </div>
+                            <div class="gps-small-panel">
+                                <div class="gps-lbl" data-i18n="altitude">ALTITUDE</div>
+                                <div class="gps-s-val">- <span class="gps-s-unit">m</span></div>
+                            </div>
+                            <div class="gps-small-panel">
+                                <div class="gps-lbl" data-i18n="time">TIME</div>
+                                <div class="gps-s-val">0:00:00</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 4: DRAG METER -->
+                <div class="swiper-slide slide-drag">
+                    <div class="gps-layout">
+                        <div class="gps-main-panel drag-main">
+                            <div class="drag-status" data-i18n="armed">ARMED</div>
+                            <div class="drag-time-display">
+                                <span class="drag-time-val">0.00</span>
+                                <div class="drag-time-lbl" data-i18n="elapsed_time">ELAPSED TIME (S)</div>
+                            </div>
+                            <div class="drag-live-data">
+                                <span><span data-i18n="speed">SPEED</span> <span class="white">0</span> km/h</span>
+                                <span><span data-i18n="dist">DIST</span> <span class="white">0</span> m</span>
+                            </div>
+                            <div class="drag-btn-group">
+                                <button class="drag-btn red-btn" data-i18n="reset">RESET</button>
+                                <button class="drag-btn dark-btn" data-i18n="save">SAVE</button>
+                                <button class="drag-btn dark-btn" data-i18n="runs">RUNS</button>
+                                <button class="drag-btn yellow-btn" data-i18n="arm">ARM</button>
+                            </div>
+                        </div>
+                        <div class="gps-side-grid">
+                            <div class="gps-small-panel drag-panel">
+                                <div class="gps-lbl">60 FT</div>
+                                <div class="gps-s-val">- <span class="gps-s-unit">s</span></div>
+                                <div class="drag-bar"></div>
+                            </div>
+                            <div class="gps-small-panel drag-panel">
+                                <div class="gps-lbl">100 M</div>
+                                <div class="gps-s-val">- <span class="gps-s-unit">s</span></div>
+                                <div class="drag-bar"></div>
+                            </div>
+                            <div class="gps-small-panel drag-panel">
+                                <div class="gps-lbl">201 M</div>
+                                <div class="gps-s-val">- <span class="gps-s-unit">s</span></div>
+                                <div class="drag-bar"></div>
+                            </div>
+                            <div class="gps-small-panel drag-panel">
+                                <div class="gps-lbl">402 M</div>
+                                <div class="gps-s-val">- <span class="gps-s-unit">s</span></div>
+                                <div class="drag-bar"></div>
+                            </div>
+                            <div class="gps-small-panel drag-panel">
+                                <div class="gps-lbl">600 M</div>
+                                <div class="gps-s-val">- <span class="gps-s-unit">s</span></div>
+                                <div class="drag-bar"></div>
+                            </div>
+                            <div class="gps-small-panel drag-panel">
+                                <div class="gps-lbl">1000 M</div>
+                                <div class="gps-s-val">- <span class="gps-s-unit">s</span></div>
+                                <div class="drag-bar"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 5: DTC SCANNER -->
+                <div class="swiper-slide slide-dtc">
+                    <div class="dtc-layout">
+                        <div class="dtc-header">
+                            <div class="dtc-title-row">
+                                <h1 class="dtc-title" data-i18n="dtc_title">DTC SCANNER</h1>
+                                <div class="dtc-count-badge"><span id="dtc-count">0</span> <span
+                                        data-i18n="dtc_codes">Codes</span></div>
+                            </div>
+                            <div class="dtc-btn-row">
+                                <button class="dtc-action-btn scan-btn" id="btn-scan-dtc">
+                                    <span class="btn-icon">⬤</span>
+                                    <span data-i18n="scan_dtc">SCAN CODES</span>
+                                </button>
+                                <button class="dtc-action-btn clear-btn" id="btn-clear-dtc">
+                                    <span class="btn-icon">✕</span>
+                                    <span data-i18n="clear_dtc">CLEAR CODES</span>
+                                </button>
+                                <button class="dtc-action-btn freeze-btn" id="btn-freeze">
+                                    <span class="btn-icon">❄</span>
+                                    <span data-i18n="freeze_frame">FREEZE FRAME</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="dtc-status-bar">
+                            <div class="dtc-status-item">
+                                <span class="dtc-status-label" data-i18n="mil_status">MIL</span>
+                                <span class="dtc-status-value" id="dtc-mil-status">OFF</span>
+                            </div>
+                            <div class="dtc-status-item">
+                                <span class="dtc-status-label" data-i18n="protocol_lbl">PROTOCOL</span>
+                                <span class="dtc-status-value" id="dtc-protocol">--</span>
+                            </div>
+                            <div class="dtc-status-item">
+                                <span class="dtc-status-label" data-i18n="monitors">MONITORS</span>
+                                <span class="dtc-status-value" id="dtc-monitors">--</span>
+                            </div>
+                        </div>
+                        <div class="dtc-list-container" id="dtc-list">
+                            <div class="dtc-empty" data-i18n="dtc_empty">กด SCAN CODES เพื่อสแกนหา Fault Codes</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 6: SETTINGS -->
+                <div class="swiper-slide slide-settings">
+                    <div class="settings-layout">
+                        <div class="settings-col">
+                            <div class="settings-section">
+                                <div class="settings-section-title" data-i18n="app_info">APPLICATION INFO</div>
+                                <div class="settings-row">
+                                    <span class="settings-label" data-i18n="version">VERSION</span>
+                                    <span class="settings-value" id="set-version">v2.5.0</span>
+                                </div>
+                                <div class="settings-row">
+                                    <span class="settings-label" data-i18n="device_name">DEVICE</span>
+                                    <span class="settings-value" id="set-device-name">--</span>
+                                </div>
+                                <div class="settings-row">
+                                    <span class="settings-label">ELM / BRIDGE</span>
+                                    <span class="settings-value" id="set-elm-ver">--</span>
+                                </div>
+                            </div>
+
+                            <!-- ECU Identification -->
+                            <div class="settings-section">
+                                <div class="settings-section-title">🔧 ECU IDENTIFICATION</div>
+                                <div class="settings-row">
+                                    <span class="settings-label">BOX CODE</span>
+                                    <span class="settings-value" id="set-ecu-boxcode"
+                                        style="color:#00d2ff;font-family:'Orbitron',monospace;">--</span>
+                                </div>
+                                <div class="settings-row">
+                                    <span class="settings-label">FLASH STATUS</span>
+                                    <span class="settings-value" id="set-flash-status"
+                                        style="display:flex;align-items:center;gap:6px;">
+                                        <span class="flash-status-dot" id="flash-status-dot"
+                                            style="width:10px;height:10px;border-radius:50%;background:#555;display:inline-block;"></span>
+                                        <span id="flash-status-text">--</span>
+                                    </span>
+                                </div>
+                                <div class="settings-row">
+                                    <span class="settings-label">ECU STATUS</span>
+                                    <span class="settings-value" id="set-ecu-status" style="color:#888;">--</span>
+                                </div>
+                            </div>
+
+                            <!-- ESP32 K-Line Log (โหมด PVX150) -->
+                            <div class="settings-section" id="esp-log-section">
+                                <div class="settings-section-title">📟 ESP32 K-LINE LOG</div>
+                                <div class="settings-row">
+                                    <span class="settings-label">PROTOCOL</span>
+                                    <span class="settings-value" id="esp-proto" style="color:#ffaa00;">--</span>
+                                </div>
+                                <div class="settings-row">
+                                    <span class="settings-label">SCAN</span>
+                                    <span class="settings-value settings-value-sm" id="esp-scan">--</span>
+                                </div>
+                                <div class="settings-row">
+                                    <span class="settings-label">RAW</span>
+                                    <span class="settings-value settings-value-sm" id="esp-raw"
+                                        style="font-family:monospace;word-break:break-all;">--</span>
+                                </div>
+                                <div class="settings-row" style="gap:6px;flex-wrap:wrap;">
+                                    <button id="btn-esp-rescan" type="button"
+                                        style="background:#ffaa00;color:#000;border:none;padding:6px 12px;border-radius:4px;font-weight:bold;cursor:pointer;">🔄 RESCAN</button>
+                                    <button id="btn-esp-copy" type="button"
+                                        style="background:#00d2ff;color:#000;border:none;padding:6px 12px;border-radius:4px;font-weight:bold;cursor:pointer;">📋 COPY</button>
+                                    <button id="btn-esp-clear" type="button"
+                                        style="background:#444;color:#fff;border:none;padding:6px 12px;border-radius:4px;font-weight:bold;cursor:pointer;">🗑 CLEAR</button>
+                                    <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:#aaa;">
+                                        <input type="checkbox" id="esp-log-autoscroll" checked> auto-scroll</label>
+                                </div>
+                                <pre id="esp-log"
+                                    style="margin:6px 0 0;max-height:260px;min-height:80px;overflow:auto;-webkit-overflow-scrolling:touch;background:#05080c;color:#9fe;border:1px solid #1e2a36;border-radius:6px;padding:8px;font:11px/1.45 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-all;">ยังไม่มี log — เชื่อมต่อ ESP32 (โหมด PVX150) ก่อน</pre>
+                            </div>
+
+
+                            <div class="settings-row">
+                                <span class="settings-label">DATA LOG</span>
+                                <span class="settings-value" style="display:flex;gap:6px;">
+                                    <button id="btn-log-start"
+                                        style="background:#00ff88;color:#000;border:none;padding:4px 12px;border-radius:4px;font-weight:bold;cursor:pointer;">▶
+                                        START</button>
+                                    <button id="btn-log-stop"
+                                        style="background:#ff3333;color:#fff;border:none;padding:4px 12px;border-radius:4px;font-weight:bold;cursor:pointer;display:none;">■
+                                        STOP</button>
+                                    <button id="btn-log-download"
+                                        style="background:#00d2ff;color:#000;border:none;padding:4px 12px;border-radius:4px;font-weight:bold;cursor:pointer;">⬇
+                                        TXT</button>
+                                </span>
+                            </div>
+
+
+                            <div class="settings-section">
+                                <div class="settings-section-title" data-i18n="vehicle_info">VEHICLE INFO</div>
+                                <div class="settings-row">
+                                    <span class="settings-label" data-i18n="car_brand">BRAND</span>
+                                    <span class="settings-value" id="set-car-brand">--</span>
+                                </div>
+                                <div class="settings-row">
+                                    <span class="settings-label" data-i18n="car_model">MODEL</span>
+                                    <span class="settings-value" id="set-car-model">--</span>
+                                </div>
+                                <div class="settings-row">
+                                    <span class="settings-label" data-i18n="car_year">YEAR</span>
+                                    <span class="settings-value" id="set-car-year">--</span>
+                                </div>
+                                <div class="settings-row">
+                                    <span class="settings-label">VIN</span>
+                                    <span class="settings-value settings-value-sm" id="set-vin">--</span>
+                                </div>
+                            </div>
+
+                            <div class="settings-section">
+                                <div class="settings-section-title" data-i18n="comm_system">COMMUNICATION</div>
+                                <div class="settings-row">
+                                    <span class="settings-label" data-i18n="protocol_type">TYPE</span>
+                                    <span class="settings-value" id="set-protocol">--</span>
+                                </div>
+                                <div class="settings-row">
+                                    <span class="settings-label" data-i18n="comm_protocol">BUS</span>
+                                    <span class="settings-value comm-badge" id="set-comm-badge">--</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-col">
+                            <div class="settings-section">
+                                <div class="settings-section-title" data-i18n="theme_settings">THEME</div>
+                                <div class="theme-grid" id="theme-grid">
+                                    <div class="theme-chip active" data-theme="default" style="--tc:#00d2ff">
+                                        <div class="theme-dot"></div><span>CYBER</span>
+                                    </div>
+                                    <div class="theme-chip" data-theme="green" style="--tc:#00ff88">
+                                        <div class="theme-dot"></div><span>MATRIX</span>
+                                    </div>
+                                    <div class="theme-chip" data-theme="orange" style="--tc:#ff8c00">
+                                        <div class="theme-dot"></div><span>INFERNO</span>
+                                    </div>
+                                    <div class="theme-chip" data-theme="purple" style="--tc:#cc44ff">
+                                        <div class="theme-dot"></div><span>NEON</span>
+                                    </div>
+                                    <div class="theme-chip" data-theme="red" style="--tc:#ff3333">
+                                        <div class="theme-dot"></div><span>DANGER</span>
+                                    </div>
+                                    <div class="theme-chip" data-theme="white" style="--tc:#ffffff">
+                                        <div class="theme-dot"></div><span>ICE</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="settings-section">
+                                <div class="settings-section-title" data-i18n="raw_monitor">RAW DATA MONITOR</div>
+                                <div class="raw-monitor-scroll" id="raw-monitor">
+                                    <div class="raw-empty" data-i18n="raw_empty">เชื่อมต่อ ELM327 เพื่อดูค่า Raw Data
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="swiper-button-next"></div>
+            <div class="swiper-button-prev"></div>
+        </div>
+    </div>
+
+    <div id="bt-status"></div>
+
+    <!-- Bluetooth Connect Modal -->
+    <div id="bt-modal" class="bt-modal-overlay" style="display:none;">
+        <div class="bt-modal">
+            <div class="bt-modal-header">
+                <div class="bt-modal-icon">📡</div>
+                <h2 class="bt-modal-title" data-i18n="bt_connect_title">ELM327 Connection</h2>
+                <p class="bt-modal-sub" data-i18n="bt_connect_sub">ค้นหาและเชื่อมต่อ OBD2 Adapter</p>
+            </div>
+            <div class="bt-modal-body">
+                <div class="modal-mode-picker">
+                    <div class="modal-mode-label">🏍 Vehicle Protocol</div>
+                    <div class="modal-mode-buttons">
+                        <button class="modal-mode-btn" data-mode="PVX150">
+                            <span class="mmb-name">PVX 150</span>
+                            <span class="mmb-sub">ESP32 K-Line Direct · BLE</span>
+                        </button>
+                        <button class="modal-mode-btn" data-mode="PCX150">
+                            <span class="mmb-name">PCX 150</span>
+                            <span class="mmb-sub">K-Line · ISO14230</span>
+                        </button>
+                        <button class="modal-mode-btn active" data-mode="PCX160">
+                            <span class="mmb-name">PCX 160</span>
+                            <span class="mmb-sub">K-Line · ISO14230 · MY2025-26</span>
+                        </button>
+                    </div>
+                    <div class="modal-mode-ecu" id="bt-target-ecu">30400-K1Z-TC2 (K-LINE 10.4k)</div>
+                </div>
+
+                <div class="bt-scan-status" id="bt-scan-status">
+                    <div class="bt-scan-ring"></div>
+                    <span id="bt-scan-text" data-i18n="bt_ready">พร้อมค้นหา</span>
+                </div>
+
+                <div class="bt-device-info" id="bt-device-info" style="display:none;">
+                    <div class="bt-device-icon">🔌</div>
+                    <div class="bt-device-name" id="bt-device-name-modal">ELM327</div>
+                    <div class="bt-device-pin">PIN: <span id="bt-pin-hint">1234 / 0000</span></div>
+                </div>
+                <div class="bt-modal-log" id="bt-modal-log"></div>
+            </div>
+            <div class="bt-modal-footer">
+                <button class="bt-modal-btn primary" id="btn-modal-connect" data-i18n="bt_scan_connect">🔍 SCAN &amp;
+                    CONNECT</button>
+                <button class="bt-modal-btn secondary" id="btn-modal-auto" data-i18n="bt_auto_connect">⚡ AUTO
+                    CONNECT</button>
+                <button class="bt-modal-btn danger" id="btn-modal-disconnect" style="display:none;"
+                    data-i18n="bt_disconnect">⊘ DISCONNECT</button>
+                <button class="bt-modal-btn outline" id="btn-modal-close" data-i18n="bt_close">✕ CLOSE</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PWA Install Prompt: Android/Chrome -->
+    <div id="pwa-install-banner" class="pwa-banner pwa-android" style="display:none;">
+        <div class="pwa-banner-content">
+            <img src="icon-192.png" alt="App Icon" class="pwa-icon">
+            <div class="pwa-text">
+                <div class="pwa-platform-badge">🤖 Android</div>
+                <div class="pwa-title">ติดตั้ง Smartgate Pro</div>
+                <div class="pwa-desc">เพิ่มลงหน้าจอหลัก · ใช้งานแบบเต็มจอ</div>
+            </div>
+            <button id="btn-pwa-install" class="pwa-btn">⬇ ติดตั้ง</button>
+            <button id="btn-pwa-close" class="pwa-close-btn">✕</button>
+        </div>
+    </div>
+
+    <!-- iOS: ใช้งานในแอป Bluefy แล้ว → แนะนำให้บันทึกไว้ -->
+    <div id="ios-install-prompt" class="pwa-banner pwa-ios" style="display:none;">
+        <div class="pwa-banner-content pwa-ios-content">
+            <img src="icon-192.png" alt="App Icon" class="pwa-icon">
+            <div class="pwa-text">
+                <div class="pwa-platform-badge">🔵 Bluefy</div>
+                <div class="pwa-title">บันทึกหน้านี้ไว้ใน Bluefy</div>
+                <div class="pwa-desc">
+                    ใช้ปุ่มบุ๊กมาร์กของ Bluefy บันทึกหน้านี้ไว้ ครั้งหน้าเปิด Bluefy แล้วแตะได้เลย
+                </div>
+            </div>
+            <button id="btn-ios-close" class="pwa-close-btn">✕</button>
+        </div>
+    </div>
+
+    <!-- iOS: Safari/Chrome ไม่มี Web Bluetooth → พาไปเปิดใน Bluefy -->
+    <div id="ios-bluefy-gate" class="bluefy-gate" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="bluefy-title">
+        <div class="bluefy-card">
+            <img src="icon-192.png" alt="" class="bluefy-icon">
+            <h2 id="bluefy-title" class="bluefy-title">บน iPhone ต้องเปิดผ่านแอป Bluefy</h2>
+            <p class="bluefy-desc">Safari และ Chrome บน iPhone/iPad เชื่อมต่อ Bluetooth ของเว็บไม่ได้
+                แอป <b>Bluefy</b> (ฟรี) ทำได้</p>
+
+            <button id="btn-open-bluefy" class="bluefy-btn bluefy-btn-primary">🔵 เปิดใน Bluefy</button>
+            <div id="bluefy-fallback" class="bluefy-fallback" style="display:none;">
+                ถ้า Bluefy ไม่เปิดขึ้นมา: เปิดแอป Bluefy เอง แล้ว <b>วางลิงก์</b> ในช่องที่อยู่ด้านบน
+                <span class="bluefy-copied">(คัดลอกลิงก์ไว้ให้แล้ว ✓)</span>
+            </div>
+            <div class="bluefy-row">
+                <a id="btn-get-bluefy" class="bluefy-btn" href="https://apps.apple.com/app/id1492822055" target="_blank" rel="noopener">⬇ ติดตั้ง Bluefy</a>
+                <button id="btn-copy-link" class="bluefy-btn">📋 คัดลอกลิงก์</button>
+            </div>
+
+            <ol class="bluefy-steps">
+                <li>ติดตั้งแอป <b>Bluefy</b> จาก App Store (ครั้งแรกครั้งเดียว)</li>
+                <li>กด <b>เปิดใน Bluefy</b> หรือวางลิงก์ในแอป Bluefy</li>
+                <li>ใน Bluefy กดปุ่ม <b>BT</b> มุมขวาบนเพื่อเชื่อมต่อ</li>
+            </ol>
+
+            <div id="bluefy-a2hs" class="bluefy-a2hs" style="display:none;">
+                <div class="bluefy-a2hs-title">📲 เพิ่มไอคอนลงหน้าจอโฮม (กดครั้งเดียวเปิด Bluefy)</div>
+                <div class="ios-steps">
+                    <span class="ios-step">1. แตะ <span class="ios-share-icon">⬆️</span> Share</span>
+                    <span class="ios-arrow">→</span>
+                    <span class="ios-step">2. Add to Home Screen</span>
+                    <span class="ios-arrow">→</span>
+                    <span class="ios-step">3. Add</span>
+                </div>
+            </div>
+
+            <button id="btn-bluefy-skip" class="bluefy-skip">ดูหน้าจอโดยไม่เชื่อมต่อ</button>
+        </div>
+    </div>
+
+    <!-- PWA Install Prompt: PC Desktop -->
+    <div id="pc-install-prompt" class="pwa-banner pwa-pc" style="display:none;">
+        <div class="pwa-banner-content">
+            <img src="icon-192.png" alt="App Icon" class="pwa-icon">
+            <div class="pwa-text">
+                <div class="pwa-platform-badge">🖥 Desktop</div>
+                <div class="pwa-title">ติดตั้งเป็น Desktop App</div>
+                <div class="pwa-desc">ใช้งานแบบแอปแยกหน้าต่าง · เข้าถึงง่ายจาก taskbar</div>
+            </div>
+            <button id="btn-pc-install" class="pwa-btn pwa-btn-pc">⬇ ติดตั้ง</button>
+            <button id="btn-pc-close" class="pwa-close-btn">✕</button>
+        </div>
+    </div>
+
+    <script src="vendor/swiper/swiper-bundle.min.js"></script>
+    <script src="log.js"></script>
+    <script src="ble-transport.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>
