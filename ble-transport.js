@@ -78,7 +78,7 @@
                 } catch (e) {
                     const msg = errText(e);
                     const err = new Error(/permission|unauthori/i.test(msg)
-                        ? 'ไม่ได้รับสิทธิ์ใช้ Bluetooth — เปิดได้ที่ ตั้งค่า > SGPro > Bluetooth'
+                        ? 'ไม่ได้รับสิทธิ์ใช้ Bluetooth — เปิดได้ที่ ตั้งค่า > ATBB PRO > Bluetooth'
                         : msg);
                     err.code = /permission|unauthori/i.test(msg) ? 'PERMISSION_DENIED' : 'INIT_FAILED';
                     throw err;

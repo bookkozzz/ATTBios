@@ -6,7 +6,7 @@
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 
-    <title>Smartgate Pro</title>
+    <title>ATBB PRO</title>
     <meta name="description" content="Smartgate Pro - OBD2 ELM327 Dashboard for real-time vehicle diagnostics">
     <link rel="manifest" href="manifest.json">
 
@@ -14,7 +14,7 @@
     <!-- iOS (Safari + Bluefy + WebBLE) -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="SGPro">
+    <meta name="apple-mobile-web-app-title" content="ATBB PRO">
     <!-- iOS ไม่รองรับไอคอน SVG บนหน้าจอโฮม ต้องเป็น PNG -->
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
@@ -43,6 +43,48 @@
 </head>
 
 <body>
+    <!-- หน้าโหลดตอนเปิดแอป -->
+    <div id="splash" aria-hidden="true">
+        <div class="splash-road"></div>
+        <div class="splash-inner">
+            <img class="splash-img" src="logo.png" alt="ATBB Smart Gauge">
+            <div class="splash-tach">
+                <div class="splash-tach-fill" id="splash-fill"></div>
+            </div>
+            <div class="splash-rpm"><span id="splash-rpm">0</span> RPM</div>
+            <div class="splash-status" id="splash-status">IGNITION ON...</div>
+        </div>
+    </div>
+    <script>
+        // หน้าโหลด: เข็มรอบกวาดขึ้นถึงตัดรอบแล้วลง ประมาณ 2.2 วิ แล้วจางหาย
+        (function () {
+            var el = document.getElementById('splash');
+            var fill = document.getElementById('splash-fill');
+            var num = document.getElementById('splash-rpm');
+            var st = document.getElementById('splash-status');
+            var max = 12000, lim = 10500;
+            try { var c = JSON.parse(localStorage.getItem('sg_cfg') || '{}'); max = c.rpmMax || max; lim = c.revLimit || lim; } catch (e) { }
+            var msgs = ['IGNITION ON...', 'CHECKING SENSORS...', 'LOADING MAPS...', 'READY TO RACE'];
+            var T = 2200, t0 = performance.now(), done = false;
+            function frame(now) {
+                var p = Math.min(1, (now - t0) / T);
+                var r = p < 0.55 ? lim * Math.pow(p / 0.55, 0.7) : lim * (1 - (p - 0.55) / 0.45 * 0.9);
+                fill.style.width = (r / max * 100) + '%';
+                fill.classList.toggle('hot', r >= lim * 0.97);
+                num.textContent = Math.round(r / 10) * 10;
+                st.textContent = msgs[Math.min(msgs.length - 1, Math.floor(p * msgs.length))];
+                if (p < 1) requestAnimationFrame(frame); else hide();
+            }
+            function hide() {
+                if (done) return; done = true;
+                el.classList.add('splash-out');
+                setTimeout(function () { el.remove(); }, 600);
+            }
+            requestAnimationFrame(frame);
+            setTimeout(hide, 5000);   // กันค้าง
+            el.addEventListener('click', hide);
+        })();
+    </script>
     <div class="app-container">
         <!-- Top Bar -->
         <div class="top-bar">
@@ -166,7 +208,7 @@
                                         <div class="speed-unit-top">RPM</div>
                                         <div class="speed-val" id="val-rpm-center">0</div>
                                     </div>
-                                    <div class="gauge-min-max"><span>0</span><span>8K</span></div>
+                                    <div class="gauge-min-max"><span>0</span><span id="rpm-gauge-max">12K</span></div>
                                 </div>
                             </div>
 
@@ -584,6 +626,28 @@
                                 <div class="settings-row">
                                     <span class="settings-label">ECU STATUS</span>
                                     <span class="settings-value" id="set-ecu-status" style="color:#888;">--</span>
+                                </div>
+                            </div>
+
+                            <!-- ค่าตั้งรถ / Bluetooth -->
+                            <div class="settings-section">
+                                <div class="settings-section-title">⚙️ BIKE &amp; BLUETOOTH</div>
+                                <div class="settings-row">
+                                    <span class="settings-label">BLUETOOTH NAME</span>
+                                    <input class="cfg-input" id="cfg-ble-name" type="text" autocomplete="off" spellcheck="false">
+                                </div>
+                                <div class="settings-row">
+                                    <span class="settings-label">REV LIMIT (rpm)</span>
+                                    <input class="cfg-input" id="cfg-rev-limit" type="number" inputmode="numeric" min="3000" max="20000" step="100">
+                                </div>
+                                <div class="settings-row">
+                                    <span class="settings-label">GAUGE MAX (rpm)</span>
+                                    <input class="cfg-input" id="cfg-rpm-max" type="number" inputmode="numeric" min="4000" max="20000" step="500">
+                                </div>
+                                <div class="settings-row" style="gap:6px;">
+                                    <button id="btn-cfg-save" type="button" class="cfg-btn">💾 SAVE</button>
+                                    <button id="btn-cfg-default" type="button" class="cfg-btn cfg-btn-dim">↺ DEFAULT</button>
+                                    <span id="cfg-msg" style="font-size:12px;color:#00ff88;"></span>
                                 </div>
                             </div>
 

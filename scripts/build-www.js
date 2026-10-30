@@ -7,8 +7,8 @@ const root = path.join(__dirname, '..');
 const out = path.join(root, 'www');
 
 const FILES = [
-    'index.html', 'style.css', 'script.js', 'log.js', 'ble-transport.js', 'manifest.json',
-    'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'icon-192.svg', 'icon-512.svg',
+    'index.html', 'style.css', 'script.js', 'log.js', 'ble-transport.js', 'maptable.js', 'gps.js', 'manifest.json',
+    'logo.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'icon-192.svg', 'icon-512.svg',
     'apple-touch-icon.png',
 ];
 const DIRS = ['vendor/swiper'];

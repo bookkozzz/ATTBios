@@ -43,7 +43,7 @@
 
     function onError(err) {
         const msg = err.code === 1
-            ? (th() ? 'ไม่ได้รับสิทธิ์ตำแหน่ง — เปิดที่ ตั้งค่า > SGPro > ตำแหน่ง' : 'Location permission denied')
+            ? (th() ? 'ไม่ได้รับสิทธิ์ตำแหน่ง — เปิดที่ ตั้งค่า > ATBB PRO > ตำแหน่ง' : 'Location permission denied')
             : (th() ? 'หาสัญญาณ GPS ไม่ได้' : 'GPS unavailable');
         $('gps-signal').textContent = msg;
         $('gps-signal').style.color = '#ff4444';
@@ -72,6 +72,39 @@
         $('gps-signal').textContent = 'GPS OFF';
         $('gps-signal').style.color = '';
         if (drag.state === 'armed' || drag.state === 'running') dragReset();
+    }
+
+
+    // นับถอยหลัง 3-2-1-GO ก่อนเริ่ม (กดที่จอเพื่อยกเลิก)
+    let cdBusy = false;
+    function countdown(onGo) {
+        if (cdBusy) return;
+        cdBusy = true;
+        const ov = document.createElement('div');
+        ov.id = 'sg-countdown';
+        ov.innerHTML = '<div class="cd-lights"><i></i><i></i><i></i></div><div class="cd-num">3</div>' +
+            `<button class="cd-cancel" type="button">${th() ? 'ยกเลิก' : 'CANCEL'}</button>`;
+        document.body.appendChild(ov);
+        const lights = ov.querySelectorAll('.cd-lights i');
+        let n = 3, timer;
+        const show = () => {
+            const num = ov.querySelector('.cd-num');
+            const fresh = num.cloneNode();           // เริ่ม animation ใหม่ทุกวินาที
+            if (n > 0) { fresh.textContent = n; lights[3 - n].classList.add('on'); }
+            else { fresh.textContent = 'GO!'; fresh.classList.add('go'); ov.querySelector('.cd-lights').classList.add('go'); }
+            num.replaceWith(fresh);
+            if (navigator.vibrate) navigator.vibrate(n > 0 ? 80 : 300);
+        };
+        const close = () => { clearTimeout(timer); ov.remove(); cdBusy = false; };
+        ov.querySelector('.cd-cancel').addEventListener('click', close);
+        show();
+        const step = () => {
+            n--;
+            show();
+            if (n > 0) timer = setTimeout(step, 1000);
+            else { timer = setTimeout(close, 600); onGo(); }
+        };
+        timer = setTimeout(step, 1000);
     }
 
     // ════════════════════════════════════════════════════
@@ -118,7 +151,11 @@
         renderGps(fix);
     });
 
-    $('btn-gps-toggle').addEventListener('click', () => { watchId === null ? startGps() : stopGps(); });
+    $('btn-gps-toggle').addEventListener('click', () => {
+        if (watchId !== null) { stopGps(); return; }
+        startGps();                                   // เปิด GPS ระหว่างนับ จะได้สัญญาณทันตอน GO
+        countdown(() => { trip.dist = 0; trip.max = 0; trip.movingMs = 0; trip.startT = null; renderGps(lastFix); });
+    });
     $('btn-gps-reset').addEventListener('click', () => {
         trip.dist = 0; trip.max = 0; trip.movingMs = 0;
         renderGps(lastFix);
@@ -217,12 +254,15 @@
     $('btn-drag-arm').addEventListener('click', () => {
         if (!startGps()) return;
         dragReset();
+        countdown(armDrag);
+    });
+    function armDrag() {
         drag.state = 'armed';
         setStatus(th() ? 'พร้อม — ออกตัวได้' : 'ARMED', '#00d2ff');
         if (lastFix && lastFix.speed * 3.6 >= LAUNCH_KMH) {
             setStatus(th() ? 'จอดนิ่งก่อนออกตัว' : 'STOP FIRST', '#ff4444');
         }
-    });
+    }
     $('btn-drag-reset').addEventListener('click', dragReset);
 
     $('btn-drag-save').addEventListener('click', () => {

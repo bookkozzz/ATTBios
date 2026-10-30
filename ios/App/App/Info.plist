@@ -4,12 +4,14 @@
 <dict>
   <key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>ATBB PRO ใช้ตำแหน่ง GPS เพื่อวัดความเร็ว ระยะทาง และจับเวลาทางตรง (Drag)</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>SGPro ใช้ Bluetooth เพื่อเชื่อมต่อกล่อง ESP32 K-Line และรับข้อมูลเครื่องยนต์มาแสดงบนหน้าปัด</string>
+	<string>ATBB PRO ใช้ Bluetooth เพื่อเชื่อมต่อกล่อง ESP32 K-Line และรับข้อมูลเครื่องยนต์มาแสดงบนหน้าปัด</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>SGPro</string>
+        <string>ATBB PRO</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

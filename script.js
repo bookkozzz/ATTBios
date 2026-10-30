@@ -1,34 +1,76 @@
+// ค่าตั้งของผู้ใช้ (เก็บในเครื่อง) — ชื่อ Bluetooth, ตัดรอบ, สเกลเกจ
+window.SGCfg = (function () {
+    const KEY = 'sg_cfg';
+    const DEF = { bleName: 'SG-KLINE-PVX150', revLimit: 10500, rpmMax: 12000 };
+    let v = {};
+    try { v = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (_) { }
+    const cfg = Object.assign({}, DEF, v);
+    cfg.save = function (patch) {
+        Object.assign(cfg, patch);
+        const o = {}; Object.keys(DEF).forEach(k => o[k] = cfg[k]);
+        try { localStorage.setItem(KEY, JSON.stringify(o)); } catch (_) { }
+    };
+    cfg.DEF = DEF;
+    return cfg;
+})();
+
 document.addEventListener('DOMContentLoaded', () => {
- 
+
     const APP_VERSION = 'v5.0.0';
     document.getElementById('set-version').textContent = APP_VERSION;
- 
+
+    // หน้า Settings: ชื่อ Bluetooth / ตัดรอบ / สเกลเกจ
+    (function cfgUI() {
+        const nm = document.getElementById('cfg-ble-name');
+        const lim = document.getElementById('cfg-rev-limit');
+        const mx = document.getElementById('cfg-rpm-max');
+        const msg = document.getElementById('cfg-msg');
+        if (!nm) return;
+        const maxLbl = () => { const e = document.getElementById('rpm-gauge-max'); if (e) e.textContent = (SGCfg.rpmMax / 1000) + 'K'; };
+        maxLbl();
+        const fill = () => { maxLbl(); nm.value = SGCfg.bleName; lim.value = SGCfg.revLimit; mx.value = SGCfg.rpmMax; };
+        const say = (t, c) => { msg.textContent = t; msg.style.color = c; setTimeout(() => msg.textContent = '', 2500); };
+        fill();
+        document.getElementById('btn-cfg-save').addEventListener('click', () => {
+            const name = nm.value.trim(), l = Math.round(+lim.value), m = Math.round(+mx.value);
+            if (!name) return say('ใส่ชื่อ Bluetooth', '#ff4444');
+            if (!(l >= 3000 && l <= 20000)) return say('ตัดรอบ 3000–20000', '#ff4444');
+            if (!(m >= 4000 && m <= 20000) || m < l) return say('สเกลเกจต้อง ≥ ตัดรอบ', '#ff4444');
+            SGCfg.save({ bleName: name, revLimit: l, rpmMax: m });
+            maxLbl();
+            say('บันทึกแล้ว', '#00ff88');
+        });
+        document.getElementById('btn-cfg-default').addEventListener('click', () => {
+            SGCfg.save(SGCfg.DEF); fill(); say('คืนค่าเริ่มต้น', '#00ff88');
+        });
+    })();
+
     function fmtNum(val, decimals = 0) {
         const n = Number(val);
         if (!isFinite(n)) return 0;
         return parseFloat(n.toFixed(decimals));
     }
- 
+
     function debugLog(msg, color = '#00d2ff') {
         const ts = new Date().toLocaleTimeString('th-TH', { hour12: false });
-        console.log(`%c[SGPro ${ts}] ${msg}`, `color:${color}; font-weight:bold;`);
+        console.log(`%c[ATBB ${ts}] ${msg}`, `color:${color}; font-weight:bold;`);
     }
- 
+
     debugLog(`🚀 Smartgate Pro ${APP_VERSION} initialized`);
     if (window.SGLog) SGLog.info(`App v${APP_VERSION} started`);
- 
+
     // =========================================
     // CANVAS GAUGE SYSTEM
     // =========================================
     const CVW = 400, CVH = 230;
     const CX = CVW / 2, CY = CVH;
     const R = 190, TR = 150, IR = 110;
- 
+
     const canvasSpeed = document.getElementById('speedCanvas');
     const ctxS = canvasSpeed.getContext('2d');
     const canvasRPM = document.getElementById('rpmCanvas');
     const ctxR = canvasRPM.getContext('2d');
- 
+
     function setCanvasSize(cv) {
         const cssW = cv.parentElement ? cv.parentElement.clientWidth : CVW;
         const dpr = window.devicePixelRatio || 1;
@@ -40,11 +82,11 @@ document.addEventListener('DOMContentLoaded', () => {
             cv.style.height = (cssW * ratio) + 'px';
         }
     }
- 
+
     let currentSpeed = 0, currentRPM = 0;
     let animSpeed = 0, animRPM = 0;
     let rafId = null;
- 
+
     function getColor(pct, isRPM) {
         if (isRPM) {
             if (pct < 0.6) return `hsl(${130 - pct / 0.6 * 30},100%,58%)`;
@@ -56,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return `hsl(${30 - (pct - 0.85) / 0.15 * 30},100%,60%)`;
         }
     }
- 
+
     function drawGauge(cv, c, pct, isRPM) {
         const W = cv.width, H = cv.height;
         const scX = W / CVW, scY = H / CVH;
@@ -105,33 +147,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         c.restore();
     }
- 
+
     function tick() {
         let go = false;
         const ds = currentSpeed - animSpeed, dr = currentRPM - animRPM;
         if (Math.abs(ds) > 0.25) { animSpeed += ds * 0.16; go = true; } else animSpeed = currentSpeed;
         if (Math.abs(dr) > 4) { animRPM += dr * 0.16; go = true; } else animRPM = currentRPM;
         drawGauge(canvasSpeed, ctxS, animSpeed / 240, false);
-        drawGauge(canvasRPM, ctxR, animRPM / 8000, true);
+        drawGauge(canvasRPM, ctxR, animRPM / SGCfg.rpmMax, true);
         const sEl = document.getElementById('val-speed-gauge');
         const rEl = document.getElementById('val-rpm-center');
         if (sEl) sEl.textContent = Math.round(animSpeed);
         if (rEl) rEl.textContent = Math.round(animRPM);
         rafId = go ? requestAnimationFrame(tick) : null;
     }
- 
+
     function setGaugeValues(speed, rpm) {
         currentSpeed = fmtNum(speed, 0);
         currentRPM = fmtNum(rpm, 0);
         if (!rafId) rafId = requestAnimationFrame(tick);
     }
- 
+
     function resizeAll() {
         setCanvasSize(canvasSpeed); setCanvasSize(canvasRPM);
         drawGauge(canvasSpeed, ctxS, animSpeed / 240, false);
-        drawGauge(canvasRPM, ctxR, animRPM / 8000, true);
+        drawGauge(canvasRPM, ctxR, animRPM / SGCfg.rpmMax, true);
     }
- 
+
     if (window.ResizeObserver) {
         const ro = new ResizeObserver(resizeAll);
         ro.observe(canvasSpeed.parentElement || document.body);
@@ -140,8 +182,8 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('resize', resizeAll);
     }
     setTimeout(resizeAll, 80);
- 
- 
+
+
     // =========================================
     // THEME SYSTEM
     // =========================================
@@ -153,9 +195,9 @@ document.addEventListener('DOMContentLoaded', () => {
         red: { primary: '#ff3333', secondary: '#cc0000', dark: '#880000', border: '#cc0000', contrast: '#00ff88' },
         white: { primary: '#ffffff', secondary: '#aaccff', dark: '#334466', border: '#aaccff', contrast: '#ff8800' },
     };
- 
+
     let activeTheme = themes.default;
- 
+
     function applyTheme(name) {
         const t = themes[name] || themes.default;
         activeTheme = t;
@@ -168,15 +210,15 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('sg_theme', name);
         debugLog(`🎨 Theme: ${name.toUpperCase()}`, t.primary);
     }
- 
+
     document.getElementById('theme-grid').addEventListener('click', e => {
         const chip = e.target.closest('.theme-chip');
         if (chip) applyTheme(chip.dataset.theme);
     });
- 
+
     applyTheme(localStorage.getItem('sg_theme') || 'default');
- 
- 
+
+
     // =========================================
     // i18n
     // =========================================
@@ -229,10 +271,10 @@ document.addEventListener('DOMContentLoaded', () => {
             bt_auto_connect: '⚡ เชื่อมต่ออัตโนมัติ', bt_disconnect: '⊘ ตัดการเชื่อมต่อ', bt_close: '✕ ปิด',
         }
     };
- 
+
     let currentLang = localStorage.getItem('sg_lang') || 'EN';
     const btnLang = document.getElementById('btn-lang');
- 
+
     function updateLanguage() {
         btnLang.textContent = currentLang === 'EN' ? 'TH' : 'EN';
         const langObj = i18n[currentLang];
@@ -242,29 +284,29 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         titleEl.textContent = langObj[`title_${screenKeys[swiper.activeIndex]}`];
     }
- 
+
     btnLang.addEventListener('click', () => {
         currentLang = currentLang === 'EN' ? 'TH' : 'EN';
         localStorage.setItem('sg_lang', currentLang);
         updateLanguage();
     });
- 
- 
+
+
     // =========================================
     // SWIPER
     // =========================================
     const screenKeys = ['tacho', 'live', 'gps', 'drag', 'dtc', 'map', 'settings'];
     const titleEl = document.getElementById('screen-title');
     const dotsContainer = document.querySelector('.pagination-dots');
- 
+
     screenKeys.forEach((_, i) => {
         const dot = document.createElement('div');
         dot.className = `dot ${i === 0 ? 'active' : ''}`;
         dotsContainer.appendChild(dot);
     });
- 
+
     const dots = document.querySelectorAll('.dot');
- 
+
     const swiper = new Swiper('.mySwiper', {
         navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' },
         grabCursor: true,
@@ -280,17 +322,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
- 
+
     // แอป iOS (Capacitor) ไม่ใช้ Service Worker — ไฟล์ทั้งหมดอยู่ในแอปอยู่แล้ว
     if ('serviceWorker' in navigator && !window.SGBle.isNative) {
         window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => { }));
     }
- 
- 
+
+
     // =========================================
     // ELM327 BLUETOOTH ENGINE
     // =========================================
- 
+
     const btnBt = document.getElementById('btn-bluetooth');
     const btLed = document.getElementById('bt-led');
     const btStatusEl = document.getElementById('bt-status');
@@ -304,7 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnModalAuto = document.getElementById('btn-modal-auto');
     const btnModalDisconnect = document.getElementById('btn-modal-disconnect');
     const btnModalClose = document.getElementById('btn-modal-close');
- 
+
     // ตัวเชื่อมต่อจริงอยู่ใน ble-transport.js (Native BLE ในแอป iOS / Web Bluetooth ในเบราว์เซอร์)
     const ble = window.SGBle;
     let btDevice = null;           // { deviceId, name } ของอุปกรณ์ที่เลือก
@@ -321,16 +363,16 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentTPS = 0;
     let currentLoad = 0;
     let currentMAP = 0;
- 
+
     // ── ESP32 K-Line BLE Mode ──
     let isKlineMode = false;       // true when connected to ESP32 K-Line bridge
     let klineJsonBuffer = '';      // buffer for incoming JSON chunks
     let ecuBoxCode = '--';         // ECU part number
     let flashReady = false;        // Flash-capable status
     let ecuStatus = false;         // ECU responding status
- 
+
     let currentVehicleProfile = localStorage.getItem('sg_vehicle_profile') || 'pcx160';
- 
+
     // ✅ PID ที่ Honda PCX ECU รองรับจริง
     const PIDS = {
         ENGINE_LOAD: '0104',
@@ -345,46 +387,46 @@ document.addEventListener('DOMContentLoaded', () => {
         O2_B1S1: '0114',
         BATT: '0142',
     };
- 
+
     // ⚡⚡⚡ TURBO MODE — RPM อย่างเดียววนเร็วสุด
     // Priority: RPM ONLY → refresh ทุก ~200ms
     const priorityPollQueue = [
         PIDS.RPM,
     ];
- 
+
     // Fast: SPEED + TPS → refresh ทุก ~500ms
     const fastPollQueue = [
         PIDS.SPEED, PIDS.TPS,
     ];
- 
+
     // Slow: ค่าที่คงที่ → refresh ทุก ~4s
     const slowPollQueue = [
         PIDS.MAP, PIDS.ENGINE_LOAD, PIDS.COOLANT, PIDS.IAT,
         PIDS.BATT, PIDS.O2_B1S1, PIDS.STFT_B1, PIDS.TIMING_ADV,
     ];
- 
+
     // ✅ Round-robin state
     let priorityIdx = 0;
     let fastIdx = 0;
     let slowIdx = 0;
     let fastCounter = 0;
     let slowCounter = 0;
- 
+
     // ⚡ Turbo: RPM วน 4 ครั้ง → ค่อยอ่าน SPEED/TPS 1 ครั้ง
     const FAST_DIVIDER = 4;    // → fast ทุก ~800ms
     // Slow: RPM วน 16 ครั้ง → ค่อยอ่าน MAP/LOAD/COOLANT 1 ครั้ง
     const SLOW_DIVIDER = 16;   // → slow ทุก ~3.2s
- 
+
     const POLL_DELAY_MS = 0;
- 
+
     const rawData = {};
- 
+
     const PID_LABELS = {
         '0104': 'LOAD', '0105': 'COOLANT', '0106': 'STFT',
         '010B': 'MAP', '010C': 'RPM', '010D': 'SPEED', '010E': 'IGT-ADV',
         '010F': 'IAT', '0111': 'TPS', '0114': 'O2', '0142': 'BATT',
     };
- 
+
     // ── Toast ─────────────────────────────────────────────────
     function showStatus(msg, duration = 3200) {
         btStatusEl.textContent = msg;
@@ -392,7 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clearTimeout(btStatusEl._t);
         btStatusEl._t = setTimeout(() => btStatusEl.classList.remove('show'), duration);
     }
- 
+
     function modalLog(msg, type = 'info') {
         const line = document.createElement('div');
         line.className = `modal-log-line log-${type}`;
@@ -407,7 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
             else SGLog.info(msg);
         }
     }
- 
+
     function setConnectedUI(connected, name = '') {
         btLed.classList.toggle('connected', connected);
         btnModalConnect.style.display = connected ? 'none' : '';
@@ -426,18 +468,18 @@ document.addEventListener('DOMContentLoaded', () => {
             btScanText.textContent = i18n[currentLang].bt_ready;
         }
     }
- 
+
     function setEl(id, val, unit = '') {
         const el = document.getElementById(id);
         if (!el) return;
         el.innerHTML = unit ? `${val}<span class="${el.classList.contains('g-val') ? 'g-unit' : 'unit'}">${unit}</span>` : String(val);
     }
- 
+
     function setBar(id, val, max) {
         const el = document.getElementById(id);
         if (el) el.style.width = Math.min((val / max) * 100, 100) + '%';
     }
- 
+
     function updateRawMonitor() {
         const mon = document.getElementById('raw-monitor');
         if (!mon) return;
@@ -449,11 +491,11 @@ document.addEventListener('DOMContentLoaded', () => {
             mon.appendChild(row);
         });
     }
- 
+
     // ── PID parser & UI updater ───────────────────────────────
     function processOBDFrame(rawInput) {
         if (window.SGLog) SGLog.rx(rawInput);
- 
+
         if (rawInput.includes('UNABLETOCONNECT') || rawInput.includes('NODATA') || rawInput.includes('ERROR')) {
             debugLog(`⚠️ ECU Error Response: ${rawInput}`, '#ffaa00');
             if (window.SGLog && lastCommandSent) {
@@ -462,22 +504,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return;
         }
- 
+
         let data = rawInput
             .replace(/^(83F1[0-9A-F]{2}|C1[0-9A-F]{2}F1|7E8[0-9A-F]{0,2})/i, '')
             .replace(/^01[0-9A-F]{2}/i, (match) => rawInput.includes('41') ? '' : match);
- 
+
         if (data.includes('ELM327')) {
             document.getElementById('set-elm-ver').textContent = data.replace(/[^A-Z0-9.\s]/g, '').trim().substring(0, 20);
         }
- 
+
         const voltMatch = data.match(/(\d+\.\d+)V/);
         if (voltMatch) {
             setEl('ld-batt', voltMatch[1], 'V');
             setEl('val-batt1', voltMatch[1]);
             if (window.SGLog) SGLog.pid('ATRV', 'BATT', voltMatch[1], 'V', rawInput);
         }
- 
+
         if (/ISO|CAN|SAE|PWM|KWP|VPW/.test(data)) {
             const isCANBus = /CAN|ISO15765|11215|11230/.test(data);
             const busType = isCANBus ? 'CAN BUS' : 'K-LINE';
@@ -486,7 +528,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('dtc-protocol').textContent = busType;
             document.getElementById('set-protocol').textContent = data.substring(0, 22);
         }
- 
+
         const idx4101 = data.indexOf('4101');
         if (idx4101 !== -1 && data.length >= idx4101 + 6) {
             const hex = data.substring(idx4101 + 4);
@@ -499,7 +541,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('dtc-monitors').textContent = numDTC;
             if (numDTC > 0) document.getElementById('dtc-count').textContent = numDTC;
         }
- 
+
         const idx0902 = data.indexOf('4902');
         if (idx0902 !== -1 && data.length > idx0902 + 4) {
             let vin = '';
@@ -510,7 +552,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (vin.length > 5) document.getElementById('set-vin').textContent = vin;
         }
- 
+
         const matchOBD = data.match(/41([0-9A-F]{2})([0-9A-F]+)/);
         if (matchOBD) {
             const pidHex = matchOBD[1];
@@ -518,18 +560,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const hex = matchOBD[2];
             const A = parseInt(hex.substring(0, 2), 16) || 0;
             const B = hex.length >= 4 ? parseInt(hex.substring(2, 4), 16) || 0 : 0;
- 
+
             let val, label, unit;
- 
+
             switch (pid) {
                 case PIDS.RPM:
                     val = Math.round(((A * 256) + B) / 4);
                     label = 'RPM'; unit = 'rpm';
                     currentRPM = val;
                     setGaugeValues(currentSpeed, val);
-                    setEl('ld-rpm', val, 'rpm'); setBar('lb-rpm', val, 8000);
+                    setEl('ld-rpm', val, 'rpm'); setBar('lb-rpm', val, SGCfg.rpmMax);
                     break;
- 
+
                 case PIDS.SPEED:
                     val = fmtNum(A, 0);
                     label = 'SPEED'; unit = 'km/h';
@@ -538,7 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     setEl('val-speed1', val); setBar('bar-speed', val, 240);
                     setEl('ld-speed', val, 'km/h'); setBar('lb-speed', val, 240);
                     break;
- 
+
                 case PIDS.TPS:
                     val = fmtNum((A * 100) / 255, 0);
                     label = 'TPS'; unit = '%';
@@ -546,86 +588,86 @@ document.addEventListener('DOMContentLoaded', () => {
                     setEl('val-tps1', val); setBar('bar-tps', val, 100);
                     setEl('ld-tps', val, '%'); setBar('lb-tps', val, 100);
                     break;
- 
+
                 case PIDS.COOLANT:
                     val = fmtNum(A - 40, 0);
                     label = 'COOLANT'; unit = '°C';
                     setEl('val-eot1', val); setBar('bar-eot', A, 215);
                     setEl('ld-eot', val, '°C'); setBar('lb-eot', A, 215);
                     break;
- 
+
                 case PIDS.IAT:
                     val = fmtNum(A - 40, 0);
                     label = 'IAT'; unit = '°C';
                     setEl('ld-iat', val, '°C'); setBar('lb-iat', A, 215);
                     break;
- 
+
                 case PIDS.MAP:
                     val = fmtNum(A, 0);
                     label = 'MAP'; unit = 'kPa';
                     currentMAP = val;
                     setEl('ld-map', val, 'kPa'); setBar('lb-map', val, 255);
                     break;
- 
+
                 case PIDS.ENGINE_LOAD:
                     val = fmtNum((A * 100) / 255, 0);
                     label = 'LOAD'; unit = '%';
                     currentLoad = val;
                     setEl('ld-load', val, '%'); setBar('lb-load', val, 100);
                     break;
- 
+
                 case PIDS.STFT_B1:
                     val = fmtNum((A - 128) * 100 / 128, 1);
                     label = 'STFT B1'; unit = '%';
                     setEl('ld-stft', val, '%'); setBar('lb-stft', A, 255);
                     break;
- 
+
                 case PIDS.O2_B1S1:
                     val = fmtNum(A * 0.005, 3);
                     label = 'O2 B1S1'; unit = 'V';
                     setEl('ld-o2', val, 'V'); setBar('lb-o2', A, 255);
                     break;
- 
+
                 case PIDS.BATT:
                     val = fmtNum((A * 256 + B) / 1000, 2);
                     label = 'BATT'; unit = 'V';
                     setEl('val-batt1', val);
                     setEl('ld-batt', val, 'V'); setBar('lb-batt', parseFloat(val), 16);
                     break;
- 
+
                 case PIDS.TIMING_ADV:
                     val = fmtNum(A / 2 - 64, 1);
                     label = 'IGT Advance'; unit = '°';
                     setEl('val-igt1', val); setEl('ld-igt', val, '°');
                     break;
- 
+
                 default:
                     val = A; label = pid; unit = '';
             }
- 
+
             if (val !== undefined) {
                 rawData[pid] = { label, val, unit };
                 updateRawMonitor();
                 if (window.SGLog) SGLog.pid(pid, label, val, unit, rawInput);
             }
         }
- 
+
         if (data.includes('43')) {
             const idx43 = data.indexOf('43');
             renderDTCs(parseDTCBytes(data.substring(idx43)));
         }
     }
- 
+
     // ⚡⚡⚡ TURBO Round-robin: RPM ทุกครั้ง, SPEED/TPS ทุก 4, อื่นๆ ทุก 16
     let lastCommandSent = '';
- 
+
     // ════════════════════════════════════════════════════════════
     //  ESP32 LOG VIEWER (log ที่ ESP32 ส่งมาทาง BLE แบบ KLINE_LOG)
     // ════════════════════════════════════════════════════════════
     const ESP_LOG_MAX = 400;
     const espLogLines = [];
     let espLogStarted = false;
- 
+
     function espLogRender() {
         const el = document.getElementById('esp-log');
         if (!el) return;
@@ -633,7 +675,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const auto = document.getElementById('esp-log-autoscroll');
         if (!auto || auto.checked) el.scrollTop = el.scrollHeight;
     }
- 
+
     let espLogRenderPending = false;
     function espLogAppend(t, msg) {
         const now = new Date().toLocaleTimeString('th-TH', { hour12: false });
@@ -648,7 +690,7 @@ document.addEventListener('DOMContentLoaded', () => {
             requestAnimationFrame(() => { espLogRenderPending = false; espLogRender(); });
         }
     }
- 
+
     document.getElementById('btn-esp-rescan')?.addEventListener('click', () => {
         if (!btChar || !isKlineMode) { espLogAppend(null, '⚠ ยังไม่ได้เชื่อมต่อ ESP32 (โหมด PVX150)'); return; }
         espLogAppend(null, '→ ส่งคำสั่ง SCAN ให้ ESP32');
@@ -672,7 +714,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
- 
+
     // ════════════════════════════════════════════════════════════
     //  ESP32 K-LINE BLE JSON HANDLER
     // ════════════════════════════════════════════════════════════
@@ -682,7 +724,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (d.type === 'KLINE_LOG') { espLogAppend(d.t, d.msg); return; }
             if (d.type !== 'KLINE_DATA') return;
             window.dispatchEvent(new CustomEvent('sg:kline', { detail: d }));   // → maptable.js
- 
+
             // ── สถานะ auto-scan ของ ESP32 ──
             if (d.proto !== undefined) {
                 const pEl = document.getElementById('esp-proto');
@@ -695,15 +737,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (d.scan !== undefined) { const e = document.getElementById('esp-scan'); if (e) e.textContent = d.scan; }
             if (d.raw !== undefined) { const e = document.getElementById('esp-raw'); if (e) e.textContent = d.raw || '--'; }
- 
+
             debugLog(`📡 K-Line: RPM=${d.rpm} TPS=${d.tps} SPD=${d.speed}`, '#00ff88');
             if (window.SGLog) SGLog.rx(jsonStr);
- 
+
             // ── Update sensor values ──
             if (d.rpm !== undefined) {
                 currentRPM = fmtNum(d.rpm, 0);
                 setGaugeValues(currentSpeed, currentRPM);
-                setEl('ld-rpm', currentRPM, 'rpm'); setBar('lb-rpm', currentRPM, 8000);
+                setEl('ld-rpm', currentRPM, 'rpm'); setBar('lb-rpm', currentRPM, SGCfg.rpmMax);
                 rawData['010C'] = { label: 'RPM', val: currentRPM, unit: 'rpm' };
             }
             if (d.speed !== undefined) {
@@ -775,7 +817,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 setEl('ld-duty', d.duty, '%'); setBar('lb-duty', d.duty, 100);
                 rawData['DUTY'] = { label: 'DUTY', val: d.duty, unit: '%' };
             }
- 
+
             // ── ECU Box Code ──
             if (d.boxCode) {
                 ecuBoxCode = d.boxCode;
@@ -785,7 +827,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const vinEl = document.getElementById('set-vin');
                 if (vinEl) vinEl.textContent = ecuBoxCode;
             }
- 
+
             // ── Flash Ready Status ──
             if (d.flashOk !== undefined) {
                 flashReady = d.flashOk;
@@ -805,7 +847,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             }
- 
+
             // ── ECU Status ──
             if (d.ecuOk !== undefined) {
                 ecuStatus = d.ecuOk;
@@ -815,36 +857,36 @@ document.addEventListener('DOMContentLoaded', () => {
                     ecuEl.style.color = ecuStatus ? '#00ff88' : '#ff4444';
                 }
             }
- 
+
             updateRawMonitor();
- 
+
             // Log to SGLog
             if (window.SGLog) {
                 SGLog.pid('KLINE', 'RPM', d.rpm || 0, 'rpm', jsonStr);
             }
- 
+
         } catch (e) {
             // Not valid JSON yet, might be partial
             debugLog(`⚠ JSON parse error: ${e.message}`, '#ffaa00');
         }
     }
- 
+
     // ════════════════════════════════════════════════════════════
     //  DATA HANDLER (routes to ELM327 or K-Line mode)
     // ════════════════════════════════════════════════════════════
- 
+
     function handleData(event) {
         const str = btDecoder.decode(event.target.value, { stream: true });
- 
+
         // ── ESP32 K-Line BLE mode: receive JSON ──
         if (isKlineMode) {
             klineJsonBuffer += str;
- 
+
             // JSON might arrive in chunks; look for complete objects
             // ESP32 sends one JSON object per notification
             let braceDepth = 0;
             let startIdx = -1;
- 
+
             for (let i = 0; i < klineJsonBuffer.length; i++) {
                 if (klineJsonBuffer[i] === '{') {
                     if (braceDepth === 0) startIdx = i;
@@ -861,33 +903,33 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             }
- 
+
             // Prevent buffer overflow
             if (klineJsonBuffer.length > 4096) {
                 klineJsonBuffer = klineJsonBuffer.substring(klineJsonBuffer.length - 1024);
             }
             return;
         }
- 
+
         // ── ELM327 mode: standard AT command handling ──
         receiveBuffer += str;
- 
+
         while (receiveBuffer.includes('>')) {
             const idx = receiveBuffer.indexOf('>');
             const raw = receiveBuffer.substring(0, idx).replace(/[\r\n\s]/g, '').toUpperCase();
             receiveBuffer = receiveBuffer.substring(idx + 1);
- 
+
             if (raw.length > 2) {
                 lastRawResponse = raw;
                 processOBDFrame(raw);
             }
- 
+
             // ⚡ Turbo polling
             if (pollActive && !isInitializing) {
                 let nextCmd;
                 fastCounter++;
                 slowCounter++;
- 
+
                 // Slow ทุก 16 cycle — MAP/LOAD/COOLANT/IAT/BATT/O2/STFT/IGT
                 if ((slowCounter % SLOW_DIVIDER) === 0) {
                     nextCmd = slowPollQueue[slowIdx];
@@ -904,7 +946,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     nextCmd = priorityPollQueue[priorityIdx];
                     priorityIdx = (priorityIdx + 1) % priorityPollQueue.length;
                 }
- 
+
                 setTimeout(() => {
                     if (pollActive && !isInitializing) {
                         sendCommandFast(nextCmd);
@@ -913,7 +955,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
- 
+
     async function sendCommand(cmd) {
         if (!btChar) return;
         lastCommandSent = cmd;
@@ -924,7 +966,7 @@ document.addEventListener('DOMContentLoaded', () => {
             debugLog(`✗ TX: ${e.message}`, '#ff4444');
         }
     }
- 
+
     function sendCommandFast(cmd) {
         if (!btChar) return;
         lastCommandSent = cmd;
@@ -932,15 +974,15 @@ document.addEventListener('DOMContentLoaded', () => {
         ble.write(new TextEncoder().encode(cmd + '\r'))
             .catch(e => debugLog(`✗ TX: ${e.message}`, '#ff4444'));
     }
- 
+
     const delay = ms => new Promise(r => setTimeout(r, ms));
- 
+
     // ── ELM327 initialization ─────────────────────────────────
     async function initELM327() {
         isInitializing = true;
         pollActive = false;
         modalLog('🔧 Initializing ELM327...', 'info');
- 
+
         await sendCommand('ATZ'); await delay(1200); modalLog('ATZ → Cold Reset', 'info');
         await sendCommand('ATE0'); await delay(200); modalLog('ATE0 → Echo OFF', 'info');
         await sendCommand('ATL0'); await delay(200); modalLog('ATL0 → LF OFF', 'info');
@@ -949,7 +991,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await sendCommand('ATAT2'); await delay(200); modalLog('ATAT2 → Adaptive Timing 2 (fast)', 'info');
         await sendCommand('ATST19'); await delay(200); modalLog('ATST19 → Timeout 100ms (fast)', 'info');
         await sendCommand('ATRV'); await delay(300); modalLog('ATRV → Voltage check', 'info');
- 
+
         // ✅ KWP2000 Fast FIRST — Honda PCX ใช้ K-Line
         const protocols = [
             { proto: 'ATSP5', header: 'ATSH8112F1', testPIDs: ['0100'], waitMs: 1200, label: 'KWP2000 Fast (8112F1)' },
@@ -961,71 +1003,71 @@ document.addEventListener('DOMContentLoaded', () => {
             { proto: 'ATSP6', header: 'ATSH7E0', testPIDs: ['0100'], waitMs: 800, label: 'CAN 500k (fallback)' },
             { proto: 'ATSP0', header: null, testPIDs: ['0100'], waitMs: 3000, label: 'Auto Protocol' },
         ];
- 
+
         function isValidReply(raw) {
             if (!raw || raw.length < 4) return false;
             const errorWords = ['ERROR', 'UNABLE', 'NODATA', 'STOPPED', 'SEARCHING', 'BUSINIIT', 'BUSINITIALIZATION'];
             if (errorWords.some(w => raw.includes(w))) return false;
             return /41[0-9A-F]{2}|61[0-9A-F]{2}/.test(raw);
         }
- 
+
         let ecuConnected = false;
- 
+
         for (const p of protocols) {
             if (!ble.isConnected()) {
                 modalLog('⚠ GATT disconnected. Aborting ECU init.', 'error');
                 isInitializing = false;
                 return;
             }
- 
+
             modalLog(`🔄 Trying ${p.label}...`, 'info');
             if (window.SGLog) SGLog.info(`Trying protocol: ${p.label}`);
- 
+
             lastRawResponse = ''; receiveBuffer = '';
             await sendCommand(p.proto);
             await delay(250);
- 
+
             if (p.header) {
                 lastRawResponse = ''; receiveBuffer = '';
                 await sendCommand(p.header);
                 await delay(250);
             }
- 
+
             for (const pid of p.testPIDs) {
                 if (!ble.isConnected()) break;
- 
+
                 lastRawResponse = '';
                 receiveBuffer = '';
                 await sendCommand(pid);
                 await delay(p.waitMs);
- 
+
                 const reply = lastRawResponse;
                 const replyShort = reply.substring(0, 40) || '(no response)';
                 modalLog(`  [${pid}] → ${replyShort}`, reply && !reply.includes('ERROR') ? 'info' : 'warn');
- 
+
                 if (isValidReply(reply)) {
                     ecuConnected = true;
                     if (window.SGLog) SGLog.setProtocol(p.label);
                     modalLog(`✅ ECU responded to ${pid} via ${p.label}!`, 'success');
                     break;
                 }
- 
+
                 if (reply.includes('BUSINIIT') || reply.includes('BUSINITIALIZATION') ||
                     (reply.includes('ERROR') && !reply.includes('NODATA'))) {
                     break;
                 }
             }
- 
+
             if (ecuConnected) break;
             modalLog(`  ✗ ${p.label} — no valid ECU response`, 'warn');
         }
- 
+
         if (!ble.isConnected()) {
             modalLog('❌ Connection lost before completing init.', 'error');
             isInitializing = false;
             return;
         }
- 
+
         if (!ecuConnected) {
             modalLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'warn');
             modalLog('⚠️  All protocols exhausted — no ECU response', 'warn');
@@ -1033,7 +1075,7 @@ document.addEventListener('DOMContentLoaded', () => {
             isInitializing = false;
             return;
         }
- 
+
         document.getElementById('set-car-brand').textContent = 'Honda';
         if (currentVehicleProfile === 'pcx160') {
             document.getElementById('set-car-model').textContent = 'PCX 160 (K1Z)';
@@ -1042,14 +1084,14 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('set-car-model').textContent = 'PCX 150 (K36)';
             document.getElementById('set-car-year').textContent = '2014-2016 (30400-K36-T01)';
         }
- 
+
         await sendCommand('ATDP'); await delay(300);
         await sendCommand('0101'); await delay(300);
- 
+
         modalLog('✅ Init complete! Turbo polling started.', 'success');
         debugLog('⚡⚡⚡ TURBO MODE — RPM refresh ~200ms', '#00ff88');
         if (window.SGLog) SGLog.info('ELM327 init complete — TURBO polling started');
- 
+
         isInitializing = false;
         pollActive = true;
         priorityIdx = 0;
@@ -1059,7 +1101,7 @@ document.addEventListener('DOMContentLoaded', () => {
         slowCounter = 0;
         sendCommandFast(priorityPollQueue[0]);
     }
- 
+
     function onGattDisconnect() {
         pollActive = false;
         btChar = null;
@@ -1069,7 +1111,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.SGLog) SGLog.warn('BLE connection lost');
         scheduleReconnect();
     }
- 
+
     // ต่อใหม่อัตโนมัติกับอุปกรณ์เดิมเมื่อหลุดเอง (ไม่ใช่ผู้ใช้กดตัด) สูงสุด MAX_RECONNECT ครั้ง
     function scheduleReconnect() {
         if (userDisconnected || !btDevice || reconnectTimer) return;
@@ -1088,14 +1130,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!document.hidden) connectBluetooth(true, btDevice);
         }, waitMs);
     }
- 
+
     // กลับมาที่แอป/แท็บ แล้วการเชื่อมต่อหลุดไประหว่างนั้น → ต่อใหม่กับอุปกรณ์เดิม
     document.addEventListener('visibilitychange', () => {
         if (document.hidden || userDisconnected || !btDevice || ble.isConnected() || reconnectTimer) return;
         reconnectTries = 0;
         connectBluetooth(true, btDevice);
     });
- 
+
     async function doDisconnect() {
         userDisconnected = true;
         clearTimeout(reconnectTimer);
@@ -1106,21 +1148,21 @@ document.addEventListener('DOMContentLoaded', () => {
         setConnectedUI(false);
         modalLog('⊘ Disconnected.', 'warn');
         showStatus('Disconnected');
- 
+
         if (window.SGLog) {
             SGLog.info('User disconnected');
             SGLog.printSummary();
         }
     }
- 
+
     btnModalDisconnect.addEventListener('click', doDisconnect);
- 
+
     let connecting = false;
- 
+
     // reuseDevice: อุปกรณ์เดิม (ใช้ตอนต่อใหม่อัตโนมัติ) → ข้ามขั้นตอนสแกน/เลือกอุปกรณ์
     async function connectBluetooth(autoMode = false, reuseDevice = null) {
         if (ble.isConnected() || connecting) return;
- 
+
         // เบราว์เซอร์ไม่มี Web Bluetooth (เช่น Safari/Chrome บน iPhone) → แนะนำ Bluefy
         // (ในแอป iOS ใช้ Native BLE เสมอ จึงไม่เข้าเงื่อนไขนี้)
         if (!ble.isAvailable()) {
@@ -1131,10 +1173,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 : '❌ This browser has no Web Bluetooth — use Chrome/Edge', 4000);
             return;
         }
- 
+
         connecting = true;
         userDisconnected = false;
- 
+
         btModalLog.innerHTML = '';
         btScanStatus.classList.add('scanning');
         btScanStatus.classList.remove('scanning-done');
@@ -1143,55 +1185,36 @@ document.addEventListener('DOMContentLoaded', () => {
             : autoMode
                 ? (currentLang === 'TH' ? 'กำลังค้นหาอุปกรณ์...' : 'Auto scanning...')
                 : (currentLang === 'TH' ? 'กำลังเปิด Picker...' : 'Opening device picker...');
- 
+
         // Detect if we're in K-Line ESP32 mode
         const isPVX = currentVehicleProfile === 'pvx150';
         if (reuseDevice) {
             modalLog(`🔄 Reconnecting to ${reuseDevice.name || 'Unknown'}...`, 'info');
         } else if (isPVX) {
-            modalLog('📡 Scanning for ESP32 K-Line Bridge (SG-KLINE-PVX150)...', 'info');
+            modalLog(`📡 Scanning for ${SGCfg.bleName}...`, 'info');
         } else {
-            modalLog('📡 Starting Bluetooth scan...', 'info');
+            modalLog(`📡 Scanning for ${SGCfg.bleName}...`, 'info');
         }
         if (ble.isNative) modalLog('📱 Native BLE (iOS app)', 'info');
- 
- 
+
+
         try {
             if (reuseDevice) {
                 ble.useDevice(reuseDevice);
             } else {
                 let requestOptions;
- 
-                if (isPVX && autoMode) {
-                    // Auto-connect specifically for ESP32 K-Line bridge
-                    requestOptions = {
-                        filters: [
-                            { namePrefix: 'SG-KLINE' },
-                            { namePrefix: 'SG_KLINE' },
-                            { namePrefix: 'ESP32' },
-                            { services: ['0000ffe0-0000-1000-8000-00805f9b34fb'] },
-                        ],
-                        optionalServices: ['0000ffe0-0000-1000-8000-00805f9b34fb', 'generic_access']
-                    };
-                } else if (autoMode) {
-                    requestOptions = {
-                        filters: [
-                            { name: 'OBDII' }, { name: 'ELM327' }, { name: 'OBD2' },
-                            { namePrefix: 'ELM' }, { namePrefix: 'OBD' }, { namePrefix: 'OBDII' },
-                            { namePrefix: 'SG-KLINE' }, { namePrefix: 'SG_KLINE' },
-                            { services: [0xFFE0] },
-                        ],
-                        optionalServices: ['generic_access']
-                    };
-                } else {
-                    requestOptions = { acceptAllDevices: true, optionalServices: [0xFFE0, 0xFFF0, '0000ffe0-0000-1000-8000-00805f9b34fb', 'generic_access'] };
-                }
- 
+
+                // ค้นหาเฉพาะชื่อที่ตั้งไว้ (ค่าเริ่มต้น SG-KLINE-PVX150 แก้ได้ที่หน้า Settings)
+                requestOptions = {
+                    filters: [{ name: SGCfg.bleName }],
+                    optionalServices: ['0000ffe0-0000-1000-8000-00805f9b34fb', 0xFFF0, 'generic_access']
+                };
+
                 btDevice = await ble.requestDevice(requestOptions);
             }
             const name = btDevice.name || 'Unknown';
             modalLog(`✅ Found: ${name}`, 'success');
- 
+
             // Detect ESP32 K-Line bridge by name
             const isESP32Bridge = /SG.?KLINE|ESP32.*KLINE|KLINE.*BLE/i.test(name) || isPVX;
             if (isESP32Bridge) {
@@ -1202,11 +1225,11 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 isKlineMode = false;
             }
- 
+
             btScanText.textContent = 'Connecting GATT...';
             await ble.connect(onGattDisconnect);
             modalLog('✅ GATT Connected', 'success');
- 
+
             // Try known service / characteristic UUIDs (ไม่เจอใช้ตัวแรก)
             const serviceUUIDs = isKlineMode
                 ? ['0000ffe0-0000-1000-8000-00805f9b34fb', 0xFFE0, 0xFFF0]
@@ -1214,11 +1237,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const charUUIDs = isKlineMode
                 ? ['0000ffe1-0000-1000-8000-00805f9b34fb', 0xFFE1, 0xFFF1]
                 : [0xFFE1, 0xFFF1, '0000ffe1-0000-1000-8000-00805f9b34fb'];
- 
+
             const chan = await ble.openChannel(serviceUUIDs, charUUIDs);
             modalLog(`✅ Service: ${chan.service}`, 'success');
             modalLog(`✅ Characteristic: ${chan.characteristic}`, 'success');
- 
+
             // เริ่มรอบใหม่: ล้าง buffer เดิมก่อนรับข้อมูล
             btDecoder = new TextDecoder('utf-8');
             receiveBuffer = '';
@@ -1226,7 +1249,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await ble.startNotifications(value => handleData({ target: { value } }));
             btChar = chan;
             reconnectTries = 0;
- 
+
             // แจ้งผู้ใช้เมื่อปิด/เปิด Bluetooth ของเครื่อง (เฉพาะแอป iOS)
             ble.watchEnabled(enabled => {
                 showStatus(enabled
@@ -1237,15 +1260,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     scheduleReconnect();
                 }
             });
- 
+
             setConnectedUI(true, name);
             showStatus(`✅ Connected: ${name}`);
- 
+
             if (isKlineMode) {
                 // K-Line mode: ESP32 handles everything, just listen
                 modalLog('✅ K-Line Bridge active — waiting for ECU data...', 'success');
                 modalLog('📊 Data will appear automatically when ESP32 reads ECU', 'info');
- 
+
                 // Set up vehicle info for PVX150
                 document.getElementById('set-car-brand').textContent = 'Honda';
                 document.getElementById('set-car-model').textContent = 'PVX 150';
@@ -1254,22 +1277,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 const badge = document.getElementById('set-comm-badge');
                 if (badge) { badge.textContent = 'K-LINE'; badge.className = 'settings-value comm-badge badge-kline'; }
                 document.getElementById('dtc-protocol').textContent = 'K-LINE';
- 
+
                 // Set processing as active
                 pollActive = true;
- 
+
                 if (window.SGLog) {
                     SGLog.setProtocol('ESP32 K-Line Direct');
                     SGLog.info('K-Line Bridge connected — passive data receive mode');
                 }
- 
+
                 setTimeout(() => { btModal.style.display = 'none'; }, 1500);
             } else {
                 // ELM327 mode: run standard init
                 await initELM327();
                 setTimeout(() => { btModal.style.display = 'none'; }, 1500);
             }
- 
+
         } catch (err) {
             btChar = null;
             try { await ble.disconnect(); } catch (_) { }
@@ -1282,7 +1305,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showStatus(cancelled
                 ? (currentLang === 'TH' ? 'ยกเลิกการเลือกอุปกรณ์' : 'Device selection cancelled')
                 : '❌ ' + errMsg);
- 
+
             // iOS: ผู้ใช้เคยปฏิเสธสิทธิ์ Bluetooth → พาไปหน้าตั้งค่าของแอป
             if (err && err.code === 'PERMISSION_DENIED') {
                 const go = confirm(currentLang === 'TH'
@@ -1290,7 +1313,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     : 'Bluetooth permission is off.\nOpen Settings to allow it?');
                 if (go) ble.openAppSettings();
             }
- 
+
             // ต่อใหม่อัตโนมัติไม่สำเร็จ → ลองรอบถัดไป
             if (reuseDevice && !userDisconnected) {
                 connecting = false;
@@ -1300,15 +1323,15 @@ document.addEventListener('DOMContentLoaded', () => {
             connecting = false;
         }
     }
- 
+
     btnModalConnect.addEventListener('click', () => connectBluetooth(false));
     btnModalAuto.addEventListener('click', () => connectBluetooth(true));
- 
+
     btnBt.addEventListener('click', () => { btModal.style.display = 'flex'; });
     btnModalClose.addEventListener('click', () => { btModal.style.display = 'none'; });
     btModal.addEventListener('click', e => { if (e.target === btModal) btModal.style.display = 'none'; });
- 
- 
+
+
     // =========================================
     // DTC SCANNER
     // =========================================
@@ -1327,7 +1350,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'P0700': 'Transmission Control', 'U0100': 'Lost Comm with ECM',
         'U0073': 'CAN Bus Off',
     };
- 
+
     function parseDTCBytes(data) {
         const types = ['P', 'C', 'B', 'U'];
         const codes = [];
@@ -1344,7 +1367,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return codes;
     }
- 
+
     function renderDTCs(codes) {
         const dtcList = document.getElementById('dtc-list');
         const dtcCount = document.getElementById('dtc-count');
@@ -1367,7 +1390,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         showStatus(`⚠ Found ${codes.length} DTC code(s)`);
     }
- 
+
     function startDTCScan() {
         if (!btChar) {
             showStatus(currentLang === 'TH' ? '⚠ ยังไม่ได้เชื่อมต่อ' : '⚠ Not connected to ELM327');
@@ -1386,7 +1409,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 3000);
         }, 600);
     }
- 
+
     async function clearDTCs() {
         if (!btChar) { showStatus('⚠ Not connected'); return; }
         const confirmMsg = currentLang === 'TH' ? 'ลบ Fault Codes ทั้งหมดหรือไม่?' : 'Clear all Fault Codes?';
@@ -1404,7 +1427,7 @@ document.addEventListener('DOMContentLoaded', () => {
             sendCommandFast(priorityPollQueue[priorityIdx]);
         }, 2000);
     }
- 
+
     document.getElementById('btn-scan-dtc').addEventListener('click', startDTCScan);
     document.getElementById('btn-clear-dtc').addEventListener('click', clearDTCs);
     document.getElementById('btn-freeze').addEventListener('click', () => {
@@ -1413,8 +1436,8 @@ document.addEventListener('DOMContentLoaded', () => {
         sendCommand('0200');
         setTimeout(() => { pollActive = true; sendCommandFast(priorityPollQueue[priorityIdx]); }, 3000);
     });
- 
- 
+
+
     // =========================================
     // setupVehicleProtocol(mode)
     // =========================================
@@ -1423,25 +1446,25 @@ document.addEventListener('DOMContentLoaded', () => {
             showStatus('⚠ Not connected — please connect first');
             return false;
         }
- 
+
         const modeUpper = (mode || '').toUpperCase();
         modalLog(`🔄 Switching protocol to ${modeUpper}...`, 'info');
         pollActive = false;
         isInitializing = true;
- 
+
         const commonCmds = [
             { cmd: 'ATZ', wait: 1200 }, { cmd: 'ATE0', wait: 200 },
             { cmd: 'ATL0', wait: 200 }, { cmd: 'ATS0', wait: 200 },
             { cmd: 'ATAT2', wait: 200 }, { cmd: 'ATRV', wait: 300 },
         ];
- 
+
         for (const c of commonCmds) {
             await sendCommand(c.cmd);
             await delay(c.wait);
         }
- 
+
         let protocolCmds = [];
- 
+
         if (modeUpper === 'PVX150') {
             // PVX150 uses ESP32 K-Line bridge — no ELM327 AT commands needed
             currentVehicleProfile = 'pvx150';
@@ -1464,12 +1487,12 @@ document.addEventListener('DOMContentLoaded', () => {
             isInitializing = false;
             return false;
         }
- 
+
         for (const c of protocolCmds) {
             await sendCommand(c.cmd);
             await delay(c.wait);
         }
- 
+
         localStorage.setItem('sg_vehicle_profile', currentVehicleProfile);
         const profileKey = currentVehicleProfile;
         const profiles = {
@@ -1504,14 +1527,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const badge = s('set-comm-badge');
             if (badge) { badge.textContent = p.bus; badge.className = `settings-value comm-badge ${p.badgeClass}`; }
         }
- 
+
         document.querySelectorAll('.mode-btn').forEach(b =>
             b.classList.toggle('active', b.dataset.mode === modeUpper));
         document.querySelectorAll('.modal-mode-btn').forEach(b =>
             b.classList.toggle('active', b.dataset.mode === modeUpper));
- 
+
         modalLog(`✅ Protocol switched to ${modeUpper}.`, 'success');
- 
+
         isInitializing = false;
         if (pollActive === false && btChar) {
             pollActive = true;
@@ -1524,7 +1547,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return true;
     }
- 
+
     // =========================================
     // HUD VISUALIZER
     // =========================================
@@ -1534,7 +1557,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ...Array(6).fill('#00ff55'), ...Array(6).fill('#aaff00'),
         ...Array(4).fill('#ffee00'), ...Array(4).fill('#ff2222'),
     ];
- 
+
     function buildStripLEDs() {
         if (!stripEl) return;
         stripEl.innerHTML = '';
@@ -1547,10 +1570,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     buildStripLEDs();
- 
+
     function updateStripLEDs(rpm) {
         if (!stripEl) return;
-        const pct = Math.min(rpm / 8000, 1.0);
+        const pct = Math.min(rpm / SGCfg.rpmMax, 1.0);
         const lit = Math.round(pct * STRIP_TOTAL);
         for (let i = 0; i < STRIP_TOTAL; i++) {
             const led = document.getElementById(`led-${i}`);
@@ -1564,13 +1587,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
- 
+
     const hudCanvas = document.getElementById('hudGraphCanvas');
     const hudCtx = hudCanvas ? hudCanvas.getContext('2d') : null;
     const GRAPH_SAMPLES = 80;
     const graphData = { rpm: Array(GRAPH_SAMPLES).fill(0), spd: Array(GRAPH_SAMPLES).fill(0) };
     let hudRafId = null;
- 
+
     function resizeHudCanvas() {
         if (!hudCanvas) return;
         const parent = hudCanvas.parentElement;
@@ -1581,27 +1604,27 @@ document.addEventListener('DOMContentLoaded', () => {
         hudCanvas.style.width = parent.clientWidth + 'px';
         hudCanvas.style.height = parent.clientHeight + 'px';
     }
- 
+
     function drawHudGraph() {
         if (!hudCtx || !hudCanvas) return;
         const t = activeTheme || themes.default;
         const W = hudCanvas.width, H = hudCanvas.height;
         const dpr = window.devicePixelRatio || 1;
         const w = W / dpr, h = H / dpr;
- 
+
         hudCtx.save();
         hudCtx.scale(dpr, dpr);
         hudCtx.clearRect(0, 0, w, h);
- 
+
         hudCtx.strokeStyle = 'rgba(255,255,255,0.06)';
         hudCtx.lineWidth = 0.5;
         for (let i = 1; i < 4; i++) {
             const y = (h / 4) * i;
             hudCtx.beginPath(); hudCtx.moveTo(0, y); hudCtx.lineTo(w, y); hudCtx.stroke();
         }
- 
+
         const step = w / (GRAPH_SAMPLES - 1);
- 
+
         hudCtx.beginPath();
         graphData.spd.forEach((v, i) => {
             const x = i * step;
@@ -1614,11 +1637,11 @@ document.addEventListener('DOMContentLoaded', () => {
         hudCtx.shadowColor = t.contrast || '#ffaa00';
         hudCtx.stroke();
         hudCtx.shadowBlur = 0;
- 
+
         hudCtx.beginPath();
         graphData.rpm.forEach((v, i) => {
             const x = i * step;
-            const y = h - (v / 8000) * (h * 0.85) - h * 0.05;
+            const y = h - (v / SGCfg.rpmMax) * (h * 0.85) - h * 0.05;
             i === 0 ? hudCtx.moveTo(x, y) : hudCtx.lineTo(x, y);
         });
         hudCtx.strokeStyle = t.primary;
@@ -1627,26 +1650,26 @@ document.addEventListener('DOMContentLoaded', () => {
         hudCtx.shadowColor = t.primary;
         hudCtx.stroke();
         hudCtx.shadowBlur = 0;
- 
+
         hudCtx.font = `bold ${Math.round(h * 0.28)}px Orbitron, sans-serif`;
         hudCtx.fillStyle = t.primary;
         hudCtx.fillText('RPM', 4, h * 0.28);
         hudCtx.fillStyle = t.contrast || '#ffaa00';
         hudCtx.fillText('SPD', w * 0.5, h * 0.28);
- 
+
         hudCtx.restore();
     }
- 
+
     function pushGraphData(rpm, spd) {
         graphData.rpm.push(fmtNum(rpm, 0)); if (graphData.rpm.length > GRAPH_SAMPLES) graphData.rpm.shift();
         graphData.spd.push(fmtNum(spd, 0)); if (graphData.spd.length > GRAPH_SAMPLES) graphData.spd.shift();
- 
+
         const activeView = document.querySelector('.hud-view.active');
         if (activeView && activeView.id === 'hud-view-graph') {
             if (!hudRafId) hudRafId = requestAnimationFrame(() => { drawHudGraph(); hudRafId = null; });
         }
     }
- 
+
     document.querySelectorAll('.hud-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.hud-tab').forEach(t => t.classList.remove('active'));
@@ -1659,13 +1682,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
- 
+
     if (window.ResizeObserver && hudCanvas) {
         const hudObs = new ResizeObserver(() => { resizeHudCanvas(); drawHudGraph(); });
         if (hudCanvas.parentElement) hudObs.observe(hudCanvas.parentElement);
     }
     setTimeout(() => { resizeHudCanvas(); drawHudGraph(); }, 120);
- 
+
     function updateCluster(rpm, spd, tps, load, map) {
         const ratio = spd > 0 && rpm > 0 ? (rpm / spd).toFixed(1) : '--';
         const hp = ((rpm * 0.00006) * (load / 100) * 11).toFixed(1);
@@ -1676,7 +1699,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (cEl('c-map')) cEl('c-map').textContent = map + ' kPa';
         if (cEl('c-hp')) cEl('c-hp').textContent = hp + ' HP';
     }
- 
+
     function updateThrottleBar(tpsPct) {
         const valEl = document.getElementById('val-tps-center');
         const barEl = document.getElementById('bar-tps-center');
@@ -1687,10 +1710,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (pw > 0) barEl.style.backgroundSize = `${pw}px 100%`;
         }
     }
- 
+
     let isRedlineFlashing = false;
     const tacho = document.querySelector('.slide-tachometer');
- 
+
     function setRedlineFlash(active) {
         if (!tacho) return;
         if (active && !isRedlineFlashing) {
@@ -1701,16 +1724,16 @@ document.addEventListener('DOMContentLoaded', () => {
             isRedlineFlashing = false;
         }
     }
- 
+
     function enhancedTick() {
         updateCluster(currentRPM, currentSpeed, currentTPS, currentLoad || 0, currentMAP || 0);
         updateThrottleBar(currentTPS);
         updateStripLEDs(currentRPM);
         if (!enhancedTick._fc) enhancedTick._fc = 0;
         if (++enhancedTick._fc % 3 === 0) pushGraphData(currentRPM, currentSpeed);
-        setRedlineFlash(currentRPM > 6600);
+        setRedlineFlash(currentRPM >= SGCfg.revLimit);
     }
- 
+
     window._sgHudEnabled = true;
     (function patchTick() {
         function hudPoll() {
@@ -1719,7 +1742,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         requestAnimationFrame(hudPoll);
     })();
- 
+
     // =========================================
     // VEHICLE MODE SWITCHER WIRING
     // =========================================
@@ -1729,7 +1752,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.modal-mode-btn').forEach(b =>
             b.classList.toggle('active', b.dataset.mode === mode));
     }
- 
+
     document.getElementById('vehicle-mode-switch').addEventListener('click', async e => {
         const btn = e.target.closest('.mode-btn');
         if (!btn) return;
@@ -1746,7 +1769,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (window.SGLog) SGLog.setVehicle(currentVehicleProfile);
         }
     });
- 
+
     document.getElementById('bt-modal').addEventListener('click', async e => {
         const btn = e.target.closest('.modal-mode-btn');
         if (!btn) return;
@@ -1763,12 +1786,12 @@ document.addEventListener('DOMContentLoaded', () => {
             else targetEl.textContent = '30400-K36-T01 (K-LINE 10.4k)';
         }
     });
- 
+
     const _initMode = currentVehicleProfile === 'pcx160' ? 'PCX160' : currentVehicleProfile === 'pvx150' ? 'PVX150' : 'PCX150';
     isKlineMode = currentVehicleProfile === 'pvx150';
     activateModeButtons(_initMode);
     if (window.SGLog) SGLog.setVehicle(currentVehicleProfile);
- 
+
     // =========================================
     // SIMULATOR RECEIVER
     // =========================================
@@ -1777,7 +1800,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data.rpm !== undefined) {
             currentRPM = fmtNum(data.rpm, 0);
             setGaugeValues(currentSpeed, currentRPM);
-            setEl('ld-rpm', currentRPM, 'rpm'); setBar('lb-rpm', currentRPM, 8000);
+            setEl('ld-rpm', currentRPM, 'rpm'); setBar('lb-rpm', currentRPM, SGCfg.rpmMax);
         }
         if (data.speed !== undefined) {
             currentSpeed = fmtNum(data.speed, 0);
@@ -1843,7 +1866,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
- 
+
     try {
         const simChannel = new BroadcastChannel('sg_obd_simulator');
         simChannel.onmessage = (e) => {
@@ -1852,26 +1875,26 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         simChannel.postMessage({ type: 'DASHBOARD_READY', active: true });
     } catch (e) { }
- 
+
     window.addEventListener('message', (e) => {
         if (e.data && e.data.type === 'SYNC_DATA') applySimulatedData(e.data.payload);
     });
- 
+
     window.addEventListener('storage', (e) => {
         if (e.key === 'sg_sim_data' && e.newValue) {
             try { applySimulatedData(JSON.parse(e.newValue)); } catch (err) { }
         }
     });
- 
+
     window.sgApplySimData = applySimulatedData;
- 
+
     // =========================================
     // LOG FILE CONTROLS
     // =========================================
     const btnLogStart = document.getElementById('btn-log-start');
     const btnLogStop = document.getElementById('btn-log-stop');
     const btnLogDownload = document.getElementById('btn-log-download');
- 
+
     if (btnLogStart) {
         btnLogStart.addEventListener('click', async () => {
             if (!window.SGLog) { showStatus('⚠ SGLog not loaded'); return; }
@@ -1885,7 +1908,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
- 
+
     if (btnLogStop) {
         btnLogStop.addEventListener('click', async () => {
             if (!window.SGLog) return;
@@ -1895,7 +1918,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showStatus('■ Log saved');
         });
     }
- 
+
     if (btnLogDownload) {
         btnLogDownload.addEventListener('click', () => {
             if (!window.SGLog) return;
@@ -1903,7 +1926,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showStatus('📥 Downloaded .txt');
         });
     }
- 
+
     let btHoldTimer = null;
     const startHold = () => {
         btHoldTimer = setTimeout(() => {
@@ -1920,7 +1943,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnBt.addEventListener('mouseleave', cancelHold);
     btnBt.addEventListener('touchstart', startHold);
     btnBt.addEventListener('touchend', cancelHold);
- 
+
     // =========================================
     // BOOT
     // =========================================
@@ -1928,30 +1951,30 @@ document.addEventListener('DOMContentLoaded', () => {
     debugLog(`💡 Click [BT] to connect`, '#7aaeff');
     debugLog(`⚡⚡⚡ TURBO MODE — RPM refresh ~200ms | SPEED/TPS every 4 | Others every 16`, '#00ff88');
     if (window.SGLog) SGLog.info(`App ready — TURBO polling (RPM priority)`);
- 
+
     // =========================================
     // PWA INSTALLATION PROMPT — MULTI-PLATFORM
     // =========================================
- 
+
     // =========================================
     // iOS → BLUEFY GATE
     // Safari/Chrome บน iOS ใช้ WebKit ที่ไม่มี Web Bluetooth
     // (รวมถึงไอคอนบนหน้าจอโฮม) จึงพาผู้ใช้ไปเปิดในแอป Bluefy
     // =========================================
- 
+
     (function initBluefyGate() {
         if (window.SGBle.isNative) return;   // แอป iOS ใช้ Native BLE ไม่ต้องพึ่ง Bluefy
         const BLUEFY_APP_STORE = 'https://apps.apple.com/app/id1492822055';
         // URL scheme ของ Bluefy — ถ้าเปิดไม่ขึ้น ผู้ใช้ยังวางลิงก์ที่คัดลอกไว้ได้
         const BLUEFY_SCHEME = 'bluefy://open?url=';
- 
+
         const ua = navigator.userAgent;
         const isIos = /iphone|ipad|ipod/i.test(ua)
             || (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1); // iPadOS แสดงตัวเป็น Mac
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches
             || window.matchMedia('(display-mode: fullscreen)').matches
             || window.navigator.standalone === true;
- 
+
         const gate = document.getElementById('ios-bluefy-gate');
         const btnOpen = document.getElementById('btn-open-bluefy');
         const btnCopy = document.getElementById('btn-copy-link');
@@ -1959,9 +1982,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const fallback = document.getElementById('bluefy-fallback');
         const a2hs = document.getElementById('bluefy-a2hs');
         if (!gate) return;
- 
+
         const pageUrl = location.href.split('#')[0];
- 
+
         async function copyLink() {
             try {
                 await navigator.clipboard.writeText(pageUrl);
@@ -1981,7 +2004,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return ok;
             }
         }
- 
+
         function show() {
             if (!isIos || navigator.bluetooth) return false;
             // ปุ่ม "เพิ่มลงหน้าจอโฮม" แสดงเฉพาะตอนเปิดใน Safari (ยังไม่ได้ติดตั้ง)
@@ -1990,7 +2013,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return true;
         }
         window.showBluefyGate = show;
- 
+
         btnOpen.addEventListener('click', async () => {
             await copyLink();
             let left = false;
@@ -2003,30 +2026,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!left) fallback.style.display = 'block';
             }, 1500);
         });
- 
+
         btnCopy.addEventListener('click', async () => {
             const ok = await copyLink();
             btnCopy.textContent = ok ? '✓ คัดลอกแล้ว' : pageUrl;
             setTimeout(() => { btnCopy.textContent = '📋 คัดลอกลิงก์'; }, 2500);
         });
- 
+
         btnSkip.addEventListener('click', () => {
             gate.style.display = 'none';
             sessionStorage.setItem('bluefy_gate_skipped', '1');
         });
- 
+
         if (isIos && !navigator.bluetooth) {
             debugLog('🍎 iOS without Web Bluetooth → Bluefy gate', '#ff375f');
             if (!sessionStorage.getItem('bluefy_gate_skipped')) show();
         }
     })();
- 
+
     // =========================================
     // FULLSCREEN + กันจอดับ
     // ในเบราว์เซอร์ (เช่น Bluefy) แถบที่อยู่จะกินพื้นที่จอ
     // ปุ่ม ⛶ ขอเต็มจอผ่าน Fullscreen API ถ้าเบราว์เซอร์รองรับ
     // =========================================
- 
+
     (function initFullscreen() {
         const btnFs = document.getElementById('btn-fullscreen');
         if (!btnFs) return;
@@ -2037,10 +2060,10 @@ document.addEventListener('DOMContentLoaded', () => {
             || window.navigator.standalone === true;
         const canFs = !!(root.requestFullscreen || root.webkitRequestFullscreen);
         const isFs = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
- 
+
         // เป็นแอปบนหน้าจอโฮมอยู่แล้ว หรือเบราว์เซอร์ไม่มี Fullscreen API (เช่น Bluefy บน iPhone) → ซ่อนปุ่ม
         if (isStandalone || !canFs) { btnFs.style.display = 'none'; return; }
- 
+
         async function enterFs() {
             try {
                 if (root.requestFullscreen) await root.requestFullscreen({ navigationUI: 'hide' });
@@ -2054,7 +2077,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (document.exitFullscreen) document.exitFullscreen().catch(() => { });
             else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
         }
- 
+
         btnFs.addEventListener('click', async () => {
             if (isFs()) {
                 exitFs();
@@ -2070,7 +2093,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     : 'Fullscreen not allowed here — in Bluefy check the ≡ menu', 5000);
             }
         });
- 
+
         // เคยเปิดเต็มจอไว้ → แตะจอครั้งแรกจะเข้าเต็มจอให้อัตโนมัติ (ต้องมีการแตะก่อนตามกฎเบราว์เซอร์)
         let wantFs = false;
         try { wantFs = localStorage.getItem('sg_fullscreen') === '1'; } catch (_) { }
@@ -2080,7 +2103,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (e.target !== btnFs && !isFs()) enterFs();
             }, true);
         }
- 
+
         // กันจอดับระหว่างขับ (Screen Wake Lock — iOS 16.4+, Chrome Android)
         let wakeLock = null;
         async function keepAwake() {
@@ -2091,7 +2114,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.addEventListener('click', keepAwake, { once: true });
         keepAwake();
     })();
- 
+
     (function initPWA() {
         // ── Platform detection ────────────────────────────────
         const ua = navigator.userAgent.toLowerCase();
@@ -2102,14 +2125,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const isSafariOnly = isIos && /safari/.test(ua) && !/crios|fxios|opios|chrome/.test(ua);
         const isChrome = /chrome|crios/.test(ua) && !/edge|edg/.test(ua);
         const isEdge = /edge|edg/.test(ua);
- 
+
         // ── Already installed as PWA? ─────────────────────────
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches
             || window.navigator.standalone === true;
- 
+
         if (isStandalone) return; // already running as PWA — hide everything
         if (window.SGBle.isNative) return; // แอป iOS (Capacitor) — ไม่ต้องแนะนำติดตั้ง PWA
- 
+
         // ── Dismissed cooldown (7 days) ───────────────────────
         function isDismissed(key) {
             const ts = parseInt(localStorage.getItem(key) || '0', 10);
@@ -2118,7 +2141,7 @@ document.addEventListener('DOMContentLoaded', () => {
         function dismiss(key) {
             localStorage.setItem(key, Date.now());
         }
- 
+
         // ── Grab banner elements ──────────────────────────────
         const androidBanner = document.getElementById('pwa-install-banner');
         const iosBanner = document.getElementById('ios-install-prompt');
@@ -2128,14 +2151,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnCloseIos = document.getElementById('btn-ios-close');
         const btnPcInstall = document.getElementById('btn-pc-install');
         const btnPcClose = document.getElementById('btn-pc-close');
- 
+
         let deferredPrompt = null;
- 
+
         // ── Handle beforeinstallprompt (Android Chrome / PC) ──
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
- 
+
             if (isAndroid && !isDismissed('pwa_android_dismissed')) {
                 androidBanner.style.display = 'block';
                 debugLog('📲 Android PWA banner shown', '#00d2ff');
@@ -2144,7 +2167,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 debugLog('🖥 PC PWA banner shown', '#cc44ff');
             }
         });
- 
+
         // Android install button
         if (btnInstall) {
             btnInstall.addEventListener('click', async () => {
@@ -2165,7 +2188,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 dismiss('pwa_android_dismissed');
             });
         }
- 
+
         // PC install button
         if (btnPcInstall) {
             btnPcInstall.addEventListener('click', async () => {
@@ -2186,7 +2209,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 dismiss('pwa_pc_dismissed');
             });
         }
- 
+
         // ── iOS ใน Bluefy: แนะนำให้บันทึกบุ๊กมาร์ก ─────────────
         // (Safari/Chrome บน iOS ไม่มี Bluetooth → ใช้ Bluefy gate แทน)
         if (isIos && navigator.bluetooth && !isDismissed('pwa_ios_dismissed')) {
@@ -2196,14 +2219,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 debugLog('🍎 Bluefy bookmark tip shown', '#ff375f');
             }, 2000);
         }
- 
+
         if (btnCloseIos) {
             btnCloseIos.addEventListener('click', () => {
                 iosBanner.style.display = 'none';
                 dismiss('pwa_ios_dismissed');
             });
         }
- 
+
         // ── Handle appinstalled event ─────────────────────────
         window.addEventListener('appinstalled', () => {
             androidBanner.style.display = 'none';
@@ -2212,8 +2235,8 @@ document.addEventListener('DOMContentLoaded', () => {
             showStatus('✅ App ติดตั้งเรียบร้อย!', 4000);
             debugLog('🎉 PWA installed successfully!', '#00ff88');
         });
- 
+
         debugLog(`🔍 Platform: ${isIos ? 'iOS' : isAndroid ? 'Android' : 'PC'} | Safari:${isSafariOnly} Chrome:${isChrome} Edge:${isEdge}`, '#7aaeff');
     })();
- 
+
 });
