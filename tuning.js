@@ -42,7 +42,7 @@ function updateLink() {
  $('tune-live-state').textContent = live ? 'LIVE' : 'ไม่มีข้อมูลสด';
  $('tune-live-state').classList.toggle('on', live);
  $('tune-match').textContent = !live || !code ? 'ยังไม่ยืนยัน' : code !== selected?.code ? 'รหัส ECU ไม่ตรงกับชุดไฟล์' : 'รหัสตรง · ยังไม่ยืนยันเวอร์ชันเฟิร์มแวร์';
- for (const key of ['rpm','tps','batt','inj','igt']) {
+ for (const key of ['rpm','tps','batt','inj','igt','afr']) {
   const value = lastData?.[key];
   $('tune-value-'+key).textContent = live && typeof value==='number' && Number.isFinite(value) ? String(value) : '—';
  }
@@ -197,7 +197,11 @@ async function seedSample(force=false) {
  const r=await record(SAMPLE.code,SAMPLE.binName,bin,SAMPLE.xdfName,xdf,{label:'ไฟล์ตัวอย่าง (XDF ปลดล็อก)'});
  await tx('readwrite',s=>s.put(r)); store.set(SEED_KEY,'1'); await refresh(r.id); return true;
 }
-$('tune-connect').onclick=()=>$('btn-bluetooth')?.click();
+const linked=()=>window.ATBBTuneLink?.connected()===true||(lastData?.ecuOk===true&&Date.now()-lastAt<3000);
+// เชื่อมอยู่แล้ว → ไม่เปิดหน้าเชื่อมต่อซ้ำ (จะตัดการเชื่อมต่อให้กดปุ่ม BT ด้านบน)
+$('tune-connect').onclick=()=>{if(linked()){message('เชื่อมต่อ ESP32 อยู่แล้ว · ข้อมูลสดกำลังเข้า · ถ้าจะตัดการเชื่อมต่อ กดปุ่ม BT ด้านบน','ok');return;}$('btn-bluetooth')?.click();};
+function updateConnectButton(){const b=$('tune-connect'),on=linked();b.textContent=on?'✓ เชื่อมต่อแล้ว':'CONNECT / เชื่อมต่อ';b.classList.toggle('is-linked',on);}
+setInterval(updateConnectButton,1000);
 $('tune-import').disabled=true;
 $('tune-import').onclick=()=>openDialog(null);
 $('tune-edit-file').onclick=()=>{if(selected)openDialog(selected);};
@@ -248,7 +252,7 @@ window.addEventListener('atbb:save-derived', async e => {
 });
 $('tune-dialog').addEventListener('close',()=>{editing=null;});
 $('tune-bin-input').onchange=()=>showPicked('bin');$('tune-xdf-input').onchange=()=>showPicked('xdf');
-for(const [key,label] of [['rpm','RPM'],['tps','TPS %'],['batt','แบต V'],['inj','หัวฉีด ms'],['igt','จุดระเบิด °']]) {
+for(const [key,label] of [['rpm','RPM'],['tps','TPS %'],['batt','แบต V'],['inj','หัวฉีด ms'],['igt','จุดระเบิด °'],['afr','AFR ~']]) {
  const box=document.createElement('article'),small=document.createElement('small'),value=document.createElement('strong');small.textContent=label;value.id='tune-value-'+key;value.textContent='—';box.append(small,value);$('tune-live').append(box);
 }
 window.addEventListener('sg:kline',e=>{

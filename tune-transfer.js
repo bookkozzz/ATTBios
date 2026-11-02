@@ -21,7 +21,8 @@ class Client {
   this.busy=true;this.paused=false;
   try {
    const caps=await this.request('CAPS');
-   if(caps.protocol!==2||caps.staging!==true)throw Error('ต้องใช้เฟิร์มแวร์ ESP32 ATBB v2 สำหรับเก็บไฟล์');
+   if(caps.protocol!==2)throw Error('เฟิร์มแวร์ใน ESP32 ไม่รองรับการเก็บไฟล์ · อัป esp32_kline.ino ตัวล่าสุด');
+   if(caps.staging!==true)throw Error(caps.state==='STORAGE_UNAVAILABLE'?'พื้นที่เก็บไฟล์ใน ESP32 ยังไม่ได้เตรียม · กด “เตรียมพื้นที่เก็บไฟล์ครั้งแรก” 1 ครั้ง แล้วกดส่งไฟล์อีกครั้ง':`พื้นที่เก็บไฟล์ใน ESP32 ไม่พร้อม (${caps.state||'ไม่ทราบสถานะ'}) · กดตรวจสถานะ ESP32`);
    if(buffer.byteLength>caps.maxImage)throw Error('ไฟล์ใหญ่เกินพื้นที่ ESP32');
    const begin=await this.request('BEGIN',{job:sha256,sha256,code,size:buffer.byteLength});
    let offset=begin.offset;

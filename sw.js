@@ -1,5 +1,5 @@
 // เปลี่ยนเลขเวอร์ชันทุกครั้งที่อัปเดตไฟล์ เพื่อให้เครื่องผู้ใช้โหลดของใหม่
-const CACHE_NAME = 'atbb-v2.0-workspace-8';
+const CACHE_NAME = 'atbb-v2.0-workspace-10';
 
 // ใช้ path แบบ relative เพื่อให้ทำงานได้แม้ host อยู่ใน sub-folder (เช่น GitHub Pages)
 const ASSETS = [
@@ -9,7 +9,7 @@ const ASSETS = [
     './script.js',
     './log.js',
     './ble-transport.js',
-    './maptable.js', './tuning.js', './tune-core.js', './tune-transfer.js', './tune-workspace.js', './tune-profiles.js', './tune-graph.js', './ecu-library/K97F-T01.profile.json', './tuning.css',
+    './maptable.js', './tuning.js', './tune-core.js', './tune-transfer.js', './tune-workspace.js', './tune-profiles.js', './tune-graph.js', './o2-afr.js', './ecu-library/K97F-T01.profile.json', './tuning.css',
     './ecu-library/30400-K97F-T01.bin', './ecu-library/PCX150-30400-K97F-T01.xdf', './ecu-library/PCX150-30400-K97F-T01unlock.xdf',
     './gps.js',
     './vendor/swiper/swiper-bundle.min.js',
