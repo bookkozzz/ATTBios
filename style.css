@@ -2456,3 +2456,76 @@ html {
 }
 .cfg-btn { background: var(--primary-color); color: #000; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; }
 .cfg-btn-dim { background: #444; color: #fff; }
+
+/* ATBB ignition-inspired racing cockpit */
+body { background-image: radial-gradient(ellipse at 50% 38%, #041a34 0%, #030911 52%, #000 100%); }
+.top-bar { border-bottom: 1px solid rgba(42,168,255,.22); padding-bottom: 8px; height: 54px; gap: 12px; }
+.brand-lockup { display:flex; align-items:center; gap:14px; flex-shrink:0; }
+.brand-lockup img { width:88px; height:38px; object-fit:contain; mix-blend-mode:screen; }
+.screen-title { color:#eaf5ff; font-size:15px; letter-spacing:3px; text-shadow:none; }
+.tacho-layout { gap:16px; padding:8px 10px; }
+.side-panels { width:20%; gap:10px; max-width:200px; }
+.data-panel, .grid-panel, .gps-small-panel {
+    background:linear-gradient(125deg,rgba(15,32,51,.9),rgba(4,12,23,.94));
+    border:1px solid rgba(87,160,225,.25); border-radius:12px; clip-path:none;
+    box-shadow:inset 0 1px rgba(255,255,255,.04); padding:12px 14px;
+}
+.data-panel { border-left:2px solid #2aa8ff; }
+.right-panels .data-panel { border-left-color:#00efac; }
+.panel-header .label { background:none; color:#8ba9c2; padding:0; box-shadow:none; transform:none; letter-spacing:2px; font-size:10px; }
+.panel-body .value { text-shadow:none; font-variant-numeric:tabular-nums; }
+.unit { color:#7f9cb5; font-size:10px; }
+.progress-bar { height:3px; background:#142334; border-radius:3px; overflow:hidden; }
+.progress-bar .fill { background:#2aa8ff; box-shadow:none; }
+.right-panels .progress-bar .fill { background:#00efac; box-shadow:none; }
+.center-column { height:100%; justify-content:center; gap:12px; padding:0; }
+.center-column .center-gauge { flex:0 1 auto; width:100%; max-width:none; gap:12px; margin:0; }
+.gauge-wrap { padding:12px 0 10px; border:1px solid rgba(87,160,225,.18); border-radius:18px; background:radial-gradient(ellipse at 50% 75%,rgba(21,67,105,.22),rgba(2,8,16,.5)); overflow:hidden; }
+.gauge-wrap::before { content:''; position:absolute; top:0; left:25%; width:50%; height:2px; background:linear-gradient(90deg,transparent,#2aa8ff,transparent); }
+.gauge-wrap:nth-child(2)::before { background:linear-gradient(90deg,transparent,#00efac,transparent); }
+.gauge-canvas { max-width:400px; }
+.gauge-center-text { top:56%; bottom:auto; line-height:1; transform:translate(-50%,-15%); }
+.speed-unit-top { color:#8ba9c2; font-size:clamp(8px,1vw,11px); line-height:1.5; letter-spacing:3px; margin:0; }
+.speed-val { font-family:'Teko',sans-serif; font-size:clamp(40px,6.2vw,88px); font-weight:500; line-height:1; text-shadow:0 0 24px rgba(42,168,255,.18); font-variant-numeric:tabular-nums; }
+.gauge-min-max { display:none; }
+.hud-panel { border:1px solid rgba(87,160,225,.16); border-radius:10px; background:rgba(3,12,23,.65); }
+.hud-tab { font-size:9px; letter-spacing:1px; }
+.tps-bar-area { padding:10px 12px; background:rgba(3,12,23,.7); border:1px solid rgba(87,160,225,.18); border-radius:10px; }
+.tps-bar-fill { background:linear-gradient(90deg,#00efac,#ffe064 70%,#ff3b48); }
+.lang-toggle, .vehicle-mode-switch, .bt-btn { border-radius:6px; }
+@media (max-aspect-ratio:1/1) {
+    .app-container { padding:8px max(10px,env(safe-area-inset-right)) 8px max(10px,env(safe-area-inset-left)); }
+    .top-bar { flex-wrap:wrap; height:auto; min-height:75px; gap:6px; }
+    .brand-lockup img { width:70px; height:30px; }
+    .brand-lockup { gap:8px; }
+    .screen-title { font-size:11px; letter-spacing:1px; text-align:right; }
+    .top-right-controls { width:100%; justify-content:flex-end; gap:10px; }
+    .tacho-layout { gap:12px; padding:4px 0 16px; }
+    .center-column { order:-1; flex:none; height:auto; width:100%; gap:8px; overflow:visible; }
+    .side-panels { width:100%; max-width:none; gap:8px; }
+    .data-panel { width:calc(50% - 4px); padding:10px 12px; }
+    .center-column .center-gauge { gap:8px; }
+    .gauge-wrap { border-radius:12px; padding:10px 0; }
+    .speed-val { font-size:clamp(36px,11vw,68px); }
+    .hud-panel { height:66px; }
+}
+@media (min-aspect-ratio:1/1) and (max-height:500px) {
+    .top-bar { height:36px; margin-bottom:4px; padding-bottom:4px; }
+    .brand-lockup img { height:28px; width:70px; }
+    .tacho-layout { gap:10px; padding:0; }
+    .side-panels { gap:5px; }
+    .data-panel { padding:5px 9px; }
+    .panel-body .value { font-size:27px; }
+    .center-column { gap:5px; }
+    .hud-panel { height:52px; }
+    .gauge-wrap { padding:4px 0; }
+    .gauge-canvas { max-width:min(100%,calc((100dvh - 155px) * 1.739)); }
+    .speed-val { font-size:clamp(32px,8vh,48px); }
+    .tps-bar-area { padding:5px 10px; }
+}
+@media (prefers-reduced-motion:reduce) {
+    .splash-road, .splash-img, .splash-tach-fill.hot { animation:none; }
+}
+/* ค่าประมาณ (ยังไม่ได้วิ่งผ่านช่องนี้) */
+.map-grid td.est { opacity: .55; font-style: italic; }
+.map-grid td.est.live, .map-grid td.est.sel { opacity: 1; }

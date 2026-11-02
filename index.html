@@ -40,6 +40,7 @@
     <!-- Swiper CSS -->
     <link rel="stylesheet" href="vendor/swiper/swiper-bundle.min.css" />
     <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="tuning.css">
 </head>
 
 <body>
@@ -88,7 +89,7 @@
     <div class="app-container">
         <!-- Top Bar -->
         <div class="top-bar">
-            <div class="pagination-dots"></div>
+            <div class="brand-lockup"><img src="logo.png" alt="ATBB Smart Gauge"><div class="pagination-dots"></div></div>
             <div class="screen-title" id="screen-title">TACHOMETER</div>
 
             <div class="top-right-controls">
@@ -569,6 +570,7 @@
                                 <button class="map-tb" id="map-redo" title="Redo">↷</button>
                                 <button class="map-tb" id="map-fit">⛶ FIT</button>
                                 <button class="map-tb" id="map-3d">◭ 3D</button>
+                                <button class="map-tb on" id="map-fill" title="เติมช่องที่ยังไม่มีข้อมูลด้วยค่าประมาณจากช่องข้างเคียง (แสดงจาง)">▦ เติมช่องว่าง</button>
                                 <button class="map-tb on" id="map-rt">∿ REAL TIME</button>
                             </div>
                             <div class="map-head">
@@ -587,7 +589,65 @@
                 </div>
 
                 <!-- Slide 7: SETTINGS -->
-                <div class="swiper-slide slide-settings">
+                <div class="swiper-slide slide-tuning"><section class="tune-panel swiper-no-swiping" aria-labelledby="tune-heading">
+<header class="tune-hero">
+ <div><small class="tune-eyebrow">ATBB 2.0 · ECU WORKSPACE</small><h2 id="tune-heading">คลังไฟล์และการจูน</h2><p>จัดการชุดไฟล์ BIN + XDF ตรวจสอบ ECU และติดตามข้อมูลสด</p></div>
+ <div class="tune-hero-actions"><button id="tune-connect" class="tune-btn tune-btn-go" type="button">CONNECT / เชื่อมต่อ</button><button id="tune-import" class="tune-btn tune-btn-primary" type="button">＋ เพิ่มชุด BIN + XDF</button></div>
+</header>
+<p id="tune-message" class="tune-message" role="status" aria-live="polite"></p>
+
+<button id="tune-safety" class="tune-safety" type="button" data-state="no" aria-live="polite"><span class="tune-safety-light" aria-hidden="true"></span><span class="tune-safety-text"><b id="tune-safety-title">ยังไม่ปลอดภัยสำหรับแฟลช</b><small id="tune-safety-detail">กำลังตรวจ…</small></span><span id="tune-safety-count" class="tune-safety-count">0/8</span></button>
+<div class="tune-status">
+ <article class="tune-status-card"><small>รหัส ECU จากรถ</small><strong id="tune-ecu">ยังไม่ได้รับรหัส ECU</strong><span id="tune-link">รอข้อมูลจากกล่อง</span></article>
+ <article class="tune-status-card"><small>การจับคู่ไฟล์</small><strong id="tune-match">ยังไม่ยืนยัน</strong><span>ชื่อไฟล์ใช้จัดหมวดหมู่ ไม่ยืนยันเฟิร์มแวร์ในรถ</span></article>
+ <article class="tune-status-card tune-status-live"><small>ข้อมูลสดจาก ECU <b id="tune-live-state" class="tune-live-pill">—</b></small><div class="tune-live" id="tune-live"></div></article>
+</div>
+
+<div class="tune-grid">
+ <section class="tune-card tune-library-card" aria-labelledby="tune-lib-heading">
+  <div class="tune-card-head"><h3 id="tune-lib-heading">คลังไฟล์ <span id="tune-count" class="tune-count">0</span></h3><input id="tune-search" class="tune-search" type="search" placeholder="ค้นหารหัส / ชื่อไฟล์ / โน้ต" aria-label="ค้นหาชุดไฟล์"></div>
+  <div id="tune-library" class="tune-library" role="listbox" aria-label="ชุดไฟล์ในคลัง"></div>
+  <p id="tune-storage" class="tune-storage"></p>
+  <p id="tune-empty" class="tune-empty" hidden>ยังไม่มีชุดไฟล์ในคลัง · กด “เพิ่มชุด BIN + XDF” <button id="tune-restore-sample" class="tune-link-btn" type="button">หรือเพิ่มไฟล์ตัวอย่าง K97F-T01</button></p>
+ </section>
+
+ <section class="tune-card tune-detail-card" aria-labelledby="tune-detail-heading">
+  <div class="tune-card-head"><div><small class="tune-eyebrow">ไฟล์ที่เลือก</small><h3 id="tune-detail-heading">—</h3></div><div class="tune-icon-actions"><button id="tune-edit-file" class="tune-btn tune-btn-ghost" type="button" disabled>✎ แก้ไข / อัปเดต</button><button id="tune-delete-file" class="tune-btn tune-btn-danger" type="button" disabled>🗑 ลบ</button></div></div>
+  <div id="tune-files" class="tune-files"></div>
+  <div class="tune-actions"><button id="tune-edit" class="tune-btn tune-btn-primary" type="button">เปิด Workspace แก้แมป</button><button id="tune-original" class="tune-btn" type="button">⤓ BIN ต้นฉบับ</button><button id="tune-xdf" class="tune-btn" type="button">⤓ XDF</button><button class="tune-btn" type="button" disabled>เขียนกลับ ECU · ยังไม่รองรับ</button></div>
+  <p class="tune-note">การเขียนกลับและปลดล็อกจะเปิดใช้เมื่อมีโปรไฟล์ที่ยืนยันตรงกับ ECU พร้อมวิธีตรวจ checksum และโปรโตคอลเขียนที่ผ่านการทดสอบ</p>
+ </section>
+</div>
+
+<section class="tune-workspace" id="tune-workspace" hidden>
+<div class="tune-workspace-head"><button id="tune-nav-toggle" class="tune-btn tune-nav-btn" type="button" title="ย่อ/ขยายเมนูรายการตาราง" aria-label="ย่อ/ขยายเมนู">☰</button><div class="tune-ws-title"><small>CALIBRATION EDITOR</small><h3 id="tune-editor-title">เลือกตาราง</h3></div><button id="tune-editor-close" class="tune-btn" type="button">กลับคลังไฟล์</button></div>
+<div class="tune-editor-layout"><nav id="tune-tree" aria-label="รายการตารางและ flags"></nav><div class="tune-editor-main"><p id="tune-editor-note" role="status"></p><div class="tune-actions"><button id="tune-undo" class="tune-btn" type="button" disabled>ย้อนกลับ</button><button id="tune-save-new" class="tune-btn tune-btn-go" type="button" disabled>💾 บันทึกเป็นไฟล์ใหม่ (เตรียมแฟลช)</button><button id="tune-save-draft" class="tune-btn" type="button" disabled>บันทึกฉบับร่าง</button><button id="tune-draft" class="tune-btn" type="button" disabled>ส่งออก Patch</button><button id="tune-draft-bin" class="tune-btn" type="button" disabled>ส่งออก BIN ฉบับร่าง</button></div><div id="tune-table-tools" class="tune-table-tools" hidden><div class="tune-tabs" role="tablist"><button id="tune-view-table" class="on" type="button">▦ ตาราง</button><button id="tune-view-graph" type="button">◭ กราฟ</button><button id="tune-fit" type="button" title="ย่อตารางให้พอดีกรอบ">⛶ FIT</button></div><div class="tune-ops"><span id="tune-sel-info" class="tune-sel-info"></span><button id="tune-op-all" class="tune-btn" type="button">เลือกทั้งหมด</button><label class="tune-fn">Function <select id="tune-fn"><option value="offset">Offset (+/-)</option><option value="pct">Multiply (%)</option><option value="set">Set value (=)</option><option value="interp-h">Interpolate ↔ (แถว)</option><option value="interp-v">Interpolate ↕ (คอลัมน์)</option></select></label><label class="tune-fn">Value <input id="tune-fn-value" type="number" step="any" value="1.0"></label><button id="tune-fn-run" class="tune-btn tune-btn-primary" type="button" data-tune-op="run">Execute</button><button data-tune-op="inc" class="tune-btn" type="button" title="เพิ่ม 1 ขั้น">＋</button><button data-tune-op="dec" class="tune-btn" type="button" title="ลด 1 ขั้น">－</button></div></div><div id="tune-editor-table"></div><canvas id="tune-graph" class="tune-graph" hidden aria-label="กราฟตาราง"></canvas><p id="tune-draft-state" role="status"></p><p id="tune-changes">ยังไม่มีการแก้ไข</p></div></div></section>
+
+<section class="tune-card tune-staging"><div class="tune-card-head"><div><small class="tune-eyebrow">ESP32 STAGING</small><h3>ส่งไฟล์ไปเก็บใน ESP32</h3></div></div><p class="tune-note">ส่งไฟล์ครบและตรวจ SHA-256 ก่อน ขั้นตอนนี้ยังไม่เขียน ECU</p><div class="tune-actions"><button id="tune-stage" class="tune-btn tune-btn-primary" type="button">ส่งไฟล์ / ส่งต่อ</button><button id="tune-pause" class="tune-btn" type="button">พักการส่ง</button><button id="tune-stage-status" class="tune-btn" type="button">ตรวจสถานะ ESP32</button><button id="tune-stage-format" class="tune-btn" type="button">เตรียมพื้นที่เก็บไฟล์ครั้งแรก</button><button id="tune-stage-discard" class="tune-btn tune-btn-danger" type="button">ลบไฟล์พักใน ESP32</button></div><label class="tune-auto"><input type="checkbox" id="tune-auto-resume" checked> ส่งไฟล์ต่อเมื่อ BLE เชื่อมต่อกลับ (เปิดแอปค้างไว้)</label><progress id="tune-progress" max="100" value="0" aria-label="ความคืบหน้าส่งไฟล์"></progress><p id="tune-stage-state" role="status" aria-live="polite">ยังไม่ได้ส่งไฟล์</p><p class="tune-note">BLE หลุดระหว่างส่ง: กลับมาเชื่อมต่อแล้วกดส่งต่อได้ ไฟเลี้ยง ESP32 และสาย ECU หลุดเป็นคนละกรณี ยังไม่มีไดรเวอร์เขียน ECU ที่ผ่านการยืนยันในรุ่นนี้</p></section>
+
+<section class="tune-card tune-flash" aria-labelledby="tune-flash-heading"><div class="tune-card-head"><div><small class="tune-eyebrow">ECU WRITE-BACK</small><h3 id="tune-flash-heading">อัดไฟล์กลับลงกล่อง</h3></div><span id="tune-flash-badge" class="tune-chip warn">ยังไม่พร้อม</span></div><div class="tune-flash-modes" role="radiogroup" aria-label="โหมดเขียน"><label class="tune-mode"><input type="radio" name="tune-flash-mode" value="fast" checked><b>อัดเร็ว</b><span>เขียนเฉพาะบล็อกที่แก้ + อ่านกลับตรวจ</span><em id="tune-est-fast">—</em></label><label class="tune-mode"><input type="radio" name="tune-flash-mode" value="full"><b>อัดเต็ม (ช้า · ปลอดภัย)</b><span>เขียนทั้งไฟล์ + อ่านกลับเทียบทุก byte</span><em id="tune-est-full">—</em></label></div><ul id="tune-flash-checks" class="tune-checks"></ul><div class="tune-actions"><button id="tune-flash" class="tune-btn tune-btn-danger" type="button" disabled>อัดลงกล่อง</button></div><p class="tune-note">ปุ่มจะเปิดเมื่อผ่านทุกข้อด้านบน เวลาประมาณจาก K-Line 10,400 baud (~1 KB/วินาที) ของจริงขึ้นกับโปรโตคอลแฟลชของกล่อง</p></section>
+
+<details class="tune-card tune-more"><summary>ตารางในไฟล์นิยาม และตัวอย่างข้อมูล BIN</summary><p id="tune-definition"></p><div id="tune-tables"></div><h3>ตัวอย่างข้อมูล BIN · 128 ไบต์แรก</h3><pre id="tune-hex"></pre></details>
+
+<dialog id="tune-dialog" class="tune-dialog" aria-labelledby="tune-dialog-title"><form id="tune-form" novalidate>
+ <h3 id="tune-dialog-title">เพิ่มชุดไฟล์</h3>
+ <label>หมายเลข ECU <input id="tune-code" required list="tune-code-list" autocomplete="off" placeholder="30400-K97F-T01"></label>
+ <datalist id="tune-code-list"><option value="30400-K97F-T01"><option value="30400-K50A-T02"><option value="30400-K96-V01"><option value="30400-K97A-U01"><option value="30400-K97G-N01"><option value="30400-K97G-N31"></datalist>
+ <label>ชื่อที่แสดง <span class="tune-opt">(ไม่บังคับ)</span><input id="tune-label" maxlength="60" placeholder="เช่น สเตจ 1 · ปลดรอบ"></label>
+ <fieldset class="tune-slot"><legend>ไฟล์ BIN</legend><div id="tune-bin-current" class="tune-slot-current"></div><label class="tune-slot-pick"><span id="tune-bin-pick-label">เลือกไฟล์ BIN</span><input id="tune-bin-input" type="file" accept=".bin"></label><p id="tune-bin-picked" class="tune-slot-picked" hidden></p></fieldset>
+ <fieldset class="tune-slot"><legend>ไฟล์ XDF</legend><div id="tune-xdf-current" class="tune-slot-current"></div><label class="tune-slot-pick"><span id="tune-xdf-pick-label">เลือกไฟล์ XDF</span><input id="tune-xdf-input" type="file" accept=".xdf"></label><p id="tune-xdf-picked" class="tune-slot-picked" hidden></p></fieldset>
+ <label>โน้ต <span class="tune-opt">(ไม่บังคับ)</span><textarea id="tune-note-input" rows="2" maxlength="500" placeholder="ที่มาไฟล์ / สิ่งที่แก้"></textarea></label>
+ <p id="tune-dialog-hint" class="tune-note">เก็บไว้ในเบราว์เซอร์เครื่องนี้ ควรเก็บไฟล์ต้นฉบับแยกไว้ด้วย</p>
+ <p id="tune-import-error" class="tune-error" role="alert"></p>
+ <div class="tune-actions tune-dialog-actions"><button id="tune-close" class="tune-btn" type="button">ยกเลิก</button><button id="tune-submit" class="tune-btn tune-btn-primary" type="submit">เก็บเข้าคลัง</button></div>
+</form></dialog>
+
+<dialog id="tune-confirm" class="tune-dialog" aria-labelledby="tune-confirm-title"><form method="dialog">
+ <h3 id="tune-confirm-title">ลบชุดไฟล์?</h3><p id="tune-confirm-text"></p>
+ <div class="tune-actions tune-dialog-actions"><button value="cancel" class="tune-btn" type="submit">ยกเลิก</button><button id="tune-confirm-ok" value="ok" class="tune-btn tune-btn-danger" type="submit">ลบถาวร</button></div>
+</form></dialog>
+</section></div>
+<div class="swiper-slide slide-settings">
                     <div class="settings-layout">
                         <div class="settings-col">
                             <div class="settings-section">
@@ -914,6 +974,12 @@
     <script src="ble-transport.js"></script>
     <script src="script.js"></script>
     <script src="maptable.js"></script>
+<script src="tune-core.js"></script>
+<script src="tune-transfer.js"></script>
+<script src="tuning.js"></script>
+<script src="tune-graph.js"></script>
+<script src="tune-profiles.js"></script>
+<script src="tune-workspace.js"></script>
     <script src="gps.js"></script>
 </body>
 

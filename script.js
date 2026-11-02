@@ -16,7 +16,7 @@ window.SGCfg = (function () {
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    const APP_VERSION = 'v5.0.0';
+    const APP_VERSION = 'v2.0.0-dev3';
     document.getElementById('set-version').textContent = APP_VERSION;
 
     // หน้า Settings: ชื่อ Bluetooth / ตัดรอบ / สเกลเกจ
@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ctxR = canvasRPM.getContext('2d');
 
     function setCanvasSize(cv) {
-        const cssW = cv.parentElement ? cv.parentElement.clientWidth : CVW;
+        const cssW = cv.clientWidth || (cv.parentElement ? cv.parentElement.clientWidth : CVW);
         const dpr = window.devicePixelRatio || 1;
         const ratio = CVH / CVW;
         const w = Math.round(cssW * dpr);
@@ -99,52 +99,53 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Segmented racing dial, sharing the ignition screen's blue / green / red palette.
     function drawGauge(cv, c, pct, isRPM) {
         const W = cv.width, H = cv.height;
-        const scX = W / CVW, scY = H / CVH;
+        if (!W || !H) return;
+        pct = Number.isFinite(pct) ? Math.max(0, Math.min(1, pct)) : 0;
         c.clearRect(0, 0, W, H);
-        c.save();
-        c.scale(scX, scY);
-        c.beginPath();
-        c.arc(CX, CY, R, Math.PI, 2 * Math.PI, false);
-        c.lineTo(CX + IR, CY);
-        c.arc(CX, CY, IR, 2 * Math.PI, Math.PI, true);
-        c.closePath();
-        const bg = c.createRadialGradient(CX, CY, IR * 0.5, CX, CY, R);
-        bg.addColorStop(0, 'rgba(3,5,38,0.80)');
-        bg.addColorStop(1, 'rgba(8,18,80,0.97)');
-        c.fillStyle = bg; c.fill();
-        c.beginPath();
-        c.arc(CX, CY, TR, Math.PI, 2 * Math.PI, false);
-        c.strokeStyle = 'rgba(12,22,95,0.90)';
-        c.lineWidth = 28; c.lineCap = 'butt'; c.stroke();
-        const N = 24;
-        for (let i = 0; i <= N; i++) {
-            const a = Math.PI + (i / N) * Math.PI;
-            const major = i % 4 === 0;
-            const ro = R * (major ? 0.975 : 0.945);
-            const ri = ro - (major ? 22 : 12);
-            const x1 = CX + ro * Math.cos(a), y1 = CY + ro * Math.sin(a);
-            const x2 = CX + ri * Math.cos(a), y2 = CY + ri * Math.sin(a);
-            c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2);
-            c.strokeStyle = i / N <= pct ? getColor(pct, isRPM) : 'rgba(65,105,210,0.30)';
-            c.lineWidth = major ? 3 : 1.5; c.lineCap = 'round'; c.stroke();
+        c.save(); c.scale(W / CVW, H / CVH);
+        const x = 200, y = 205, radius = 171;
+        const start = Math.PI * 1.08, sweep = Math.PI * .84;
+        const limit = isRPM ? Math.max(0, Math.min(1, SGCfg.revLimit / SGCfg.rpmMax)) : .85;
+        const color = t => isRPM ? (t >= limit ? '#ff3b48' : t >= limit * .75 ? '#ffe064' : '#00efac') : '#2aa8ff';
+        const arc = (r, a, b, width, stroke) => {
+            c.beginPath(); c.arc(x, y, r, a, b); c.lineWidth = width;
+            c.strokeStyle = stroke; c.stroke();
+        };
+        c.lineCap = 'butt';
+        arc(radius + 17, start, start + sweep, 1, 'rgba(87,160,225,.28)');
+        arc(radius - 35, start, start + sweep, 1, 'rgba(87,160,225,.16)');
+        const count = 48;
+        for (let i = 0; i < count; i++) {
+            const t = i / count, a = start + t * sweep;
+            const active = pct > 0 && (i + .5) / count <= pct;
+            c.shadowBlur = active ? 9 : 0; c.shadowColor = color(t);
+            arc(radius, a, a + sweep / count * .72, 17,
+                active ? color(t) : (isRPM && t >= limit ? 'rgba(255,59,72,.22)' : 'rgba(66,110,158,.22)'));
         }
-        if (pct > 0.005) {
-            const endA = Math.PI + pct * Math.PI;
-            const color = getColor(pct, isRPM);
-            const aColor = color.replace('hsl(', 'hsla(').replace(')', ',0.22)');
-            c.beginPath(); c.arc(CX, CY, TR, Math.PI, endA, false);
-            c.strokeStyle = aColor; c.lineWidth = 56; c.lineCap = 'round'; c.stroke();
-            c.beginPath(); c.arc(CX, CY, TR, Math.PI, endA, false);
-            c.strokeStyle = color; c.lineWidth = 24; c.lineCap = 'round';
-            c.shadowBlur = 20; c.shadowColor = color; c.stroke(); c.shadowBlur = 0;
-            c.beginPath(); c.arc(CX, CY, TR, Math.PI, endA, false);
-            c.strokeStyle = 'rgba(255,255,255,0.55)'; c.lineWidth = 2; c.lineCap = 'round'; c.stroke();
-            const tx = CX + TR * Math.cos(endA), ty = CY + TR * Math.sin(endA);
-            c.beginPath(); c.arc(tx, ty, 6, 0, Math.PI * 2);
-            c.fillStyle = '#fff'; c.shadowBlur = 14; c.shadowColor = color; c.fill(); c.shadowBlur = 0;
+        c.shadowBlur = 0;
+        for (let i = 0; i <= 6; i++) {
+            const t = i / 6, a = start + t * sweep;
+            const r = radius - 23;
+            c.beginPath(); c.moveTo(x + r * Math.cos(a), y + r * Math.sin(a));
+            c.lineTo(x + (r - 7) * Math.cos(a), y + (r - 7) * Math.sin(a));
+            c.lineWidth = 1.5; c.strokeStyle = '#6b8da9'; c.stroke();
+            c.font = '500 12px Orbitron, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+            c.fillStyle = '#8ba9c2';
+            const label = isRPM ? Math.round(t * SGCfg.rpmMax / 100) / 10 : Math.round(t * 240);
+            c.fillText(String(label), x + (r - 22) * Math.cos(a), y + (r - 22) * Math.sin(a));
         }
+        if (pct > 0) {
+            const a = start + pct * sweep;
+            c.shadowColor = color(pct); c.shadowBlur = 12;
+            arc(radius + 13, a - .012, a + .012, 10, '#ffffff');
+        }
+        c.shadowBlur = 0;
+        c.font = '600 9px Orbitron, sans-serif'; c.textAlign = 'center';
+        c.fillStyle = isRPM ? '#00efac' : '#2aa8ff';
+        c.fillText(isRPM ? 'ENGINE / ×1000' : 'VEHICLE SPEED', x, 222);
         c.restore();
     }
 
@@ -225,7 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const i18n = {
         EN: {
             title_tacho: 'TACHOMETER', title_live: 'LIVE DATA', title_gps: 'GPS METER',
-            title_drag: 'DRAG METER', title_dtc: 'DTC SCANNER', title_map: 'MAP TABLE', title_settings: 'SETTINGS',
+            title_drag: 'DRAG METER', title_dtc: 'DTC SCANNER', title_map: 'MAP TABLE', title_tuning: 'ECU TUNING', title_settings: 'SETTINGS',
             inj: 'INJ', speed: 'SPEED', tps: 'TPS', mode: 'MODE', afr: 'AFR', eot: 'EOT',
             igt: 'IGT', duty: 'DUTY', rpm: 'RPM', iat: 'IAT', map: 'MAP', batt: 'BATT',
             o2: 'O2', stft: 'STFT', ltft: 'LTFT', load: 'LOAD',
@@ -248,7 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         TH: {
             title_tacho: 'หน้าปัดหลัก', title_live: 'ข้อมูลสด', title_gps: 'มาตรวัด GPS',
-            title_drag: 'จับเวลาทางตรง', title_dtc: 'สแกน DTC', title_map: 'ตารางจูน', title_settings: 'ตั้งค่า',
+            title_drag: 'จับเวลาทางตรง', title_dtc: 'สแกน DTC', title_map: 'ตารางจูน', title_tuning: 'จูน ECU', title_settings: 'ตั้งค่า',
             inj: 'หัวฉีด', speed: 'ความเร็ว', tps: 'ปีกผีเสื้อ', mode: 'โหมด',
             afr: 'ส่วนผสม', eot: 'อุณ.น้ำมัน', igt: 'จุดระเบิด', duty: 'ภาระ',
             rpm: 'รอบเครื่อง', iat: 'อุณ.ไอดี', map: 'แรงดันไอดี', batt: 'แบตเตอรี่',
@@ -295,7 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================
     // SWIPER
     // =========================================
-    const screenKeys = ['tacho', 'live', 'gps', 'drag', 'dtc', 'map', 'settings'];
+    const screenKeys = ['tacho', 'live', 'gps', 'drag', 'dtc', 'map', 'tuning', 'settings'];
     const titleEl = document.getElementById('screen-title');
     const dotsContainer = document.querySelector('.pagination-dots');
 
@@ -721,6 +722,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleKLineJSON(jsonStr) {
         try {
             const d = JSON.parse(jsonStr);
+            if (d.type === 'TUNE_REPLY') { window.dispatchEvent(new CustomEvent('atbb:tune-reply', {detail:d})); return; }
             if (d.type === 'KLINE_LOG') { espLogAppend(d.t, d.msg); return; }
             if (d.type !== 'KLINE_DATA') return;
             window.dispatchEvent(new CustomEvent('sg:kline', { detail: d }));   // → maptable.js
@@ -790,11 +792,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 setEl('ld-igt', d.igt, '°'); setBar('lb-igt', (parseFloat(d.igt) + 10) * 2, 100);
                 rawData['010E'] = { label: 'IGT', val: d.igt, unit: '°' };
             }
-            if (d.o2 !== undefined) {
+            // null = กล่องไม่ส่งค่านี้ (ไม่มีเซนเซอร์/ยังไม่รู้ตำแหน่ง) → แสดง -- แทนตัวเลขค้าง
+            if (d.o2 === null) { setEl('ld-o2', '--', 'V'); setBar('lb-o2', 0, 100); }
+            else if (d.o2 !== undefined) {
                 setEl('ld-o2', d.o2, 'V'); setBar('lb-o2', parseFloat(d.o2) * 100, 100);
                 rawData['0114'] = { label: 'O2', val: d.o2, unit: 'V' };
             }
-            if (d.afr !== undefined) {
+            if (d.afr === null) { setEl('val-afr1', '--'); setEl('ld-afr', '--', 'λ'); setBar('lb-afr', 0, 100); delete rawData['AFR']; }
+            else if (d.afr !== undefined) {
                 setEl('val-afr1', d.afr);
                 setEl('ld-afr', d.afr, 'λ'); setBar('lb-afr', (parseFloat(d.afr) / 2) * 100, 100);
                 rawData['AFR'] = { label: 'AFR', val: d.afr, unit: 'λ' };
@@ -886,9 +891,18 @@ document.addEventListener('DOMContentLoaded', () => {
             // ESP32 sends one JSON object per notification
             let braceDepth = 0;
             let startIdx = -1;
+            let inString = false, escaped = false;
 
             for (let i = 0; i < klineJsonBuffer.length; i++) {
-                if (klineJsonBuffer[i] === '{') {
+                const ch = klineJsonBuffer[i];
+                if (inString) {
+                    if (escaped) escaped = false;
+                    else if (ch === '\\') escaped = true;
+                    else if (ch === '"') inString = false;
+                    continue;
+                }
+                if (ch === '"' && braceDepth > 0) { inString = true; continue; }
+                if (ch === '{') {
                     if (braceDepth === 0) startIdx = i;
                     braceDepth++;
                 }
@@ -955,6 +969,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
+
+    window.ATBBTuneLink = {
+        connected: () => !!btChar && ble.isConnected() && isKlineMode,
+        async write(bytes) {
+            if (!btChar || !ble.isConnected() || !isKlineMode) throw new Error('เชื่อมต่อ ESP32 K-Line ก่อน');
+            await ble.write(bytes);
+        }
+    };
 
     async function sendCommand(cmd) {
         if (!btChar) return;

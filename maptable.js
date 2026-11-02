@@ -70,12 +70,36 @@
     let clipboard = null;
 
     const edits = () => draft || saved[current];
+    // ช่องที่มีข้อมูลน้อยกว่า MIN_HITS ถือว่ายังไม่มีค่าจริง → ใช้ค่าประมาณจากช่องข้างเคียง (แสดงจาง)
+    const MIN_HITS = 0.35;
+    let fillGaps = localStorage.getItem('sg_map_fill') !== 'off';
+    let estCache = null, estKey = '';
+    function measured(r, c) { const l = logData[current][r][c]; return l.n >= MIN_HITS ? l.sum / l.n : null; }
+    function estimates() {
+        const key = current + ':' + logVersion;
+        if (estCache && estKey === key) return estCache;
+        const known = [];
+        for (let r = 0; r < NR; r++) for (let c = 0; c < NC; c++) { const v = measured(r, c); if (v !== null) known.push([r, c, v]); }
+        const out = blank(() => null);
+        if (known.length) for (let r = 0; r < NR; r++) for (let c = 0; c < NC; c++) {
+            if (measured(r, c) !== null) continue;
+            // inverse-distance weighting จาก 8 ช่องที่ใกล้ที่สุดที่มีข้อมูลจริง
+            const near = known.map(([kr, kc, v]) => [Math.hypot(kr - r, (kc - c) * 1.1), v]).sort((a, b) => a[0] - b[0]).slice(0, 8);
+            let ws = 0, vs = 0;
+            for (const [d, v] of near) { const w = 1 / (d * d); ws += w; vs += w * v; }
+            out[r][c] = vs / ws;
+        }
+        estCache = out; estKey = key; return out;
+    }
+    let logVersion = 0;
     function cellValue(r, c) {
         const e = edits()[r][c];
         if (e !== null && e !== undefined) return e;
-        const l = logData[current][r][c];
-        return l.n ? l.sum / l.n : null;
+        const m = measured(r, c);
+        if (m !== null) return m;
+        return fillGaps ? estimates()[r][c] : null;
     }
+    const isEstimated = (r, c) => !isEdited(r, c) && measured(r, c) === null && cellValue(r, c) !== null;
     const isEdited = (r, c) => { const e = edits()[r][c]; return e !== null && e !== undefined; };
 
     let saveLogTimer = null;
@@ -122,6 +146,14 @@
         for (let i = 1; i < bins.length; i++) if (Math.abs(bins[i] - v) < Math.abs(bins[best] - v)) best = i;
         return best;
     };
+    // ตำแหน่งระหว่างสองช่องของแกน → [[index, น้ำหนัก], ...]
+    function spread(bins, v) {
+        if (v <= bins[0]) return [[0, 1]];
+        if (v >= bins[bins.length - 1]) return [[bins.length - 1, 1]];
+        let i = 0; while (bins[i + 1] < v) i++;
+        const t = (v - bins[i]) / (bins[i + 1] - bins[i]);
+        return [[i, 1 - t], [i + 1, t]];
+    }
     const selBox = () => ({
         rA: Math.min(sel.r0, sel.r1), rB: Math.max(sel.r0, sel.r1),
         cA: Math.min(sel.c0, sel.c1), cB: Math.max(sel.c0, sel.c1),
@@ -146,12 +178,13 @@
         const dec = TABLES[current].dec;
         for (let r = 0; r < NR; r++) for (let c = 0; c < NC; c++) {
             const td = cells[r][c], v = cellValue(r, c);
-            if (v === null) { td.textContent = ''; td.style.background = ''; td.style.color = ''; td.classList.remove('edited'); continue; }
+            if (v === null) { td.textContent = ''; td.style.background = ''; td.style.color = ''; td.classList.remove('edited', 'est'); continue; }
             const p = norm(v, min, max);
             td.textContent = v.toFixed(dec);
             td.style.background = heat(p);
             td.style.color = (p > 0.3 && p < 0.75) ? '#05101c' : '#fff';
             td.classList.toggle('edited', isEdited(r, c));
+            td.classList.toggle('est', isEstimated(r, c));
         }
         $('map-lg-min').textContent = min.toFixed(dec);
         $('map-lg-mid').textContent = ((min + max) / 2).toFixed(dec);
@@ -308,6 +341,7 @@
         $('map-rt').classList.toggle('on', realTime);
         $('map-fit').classList.toggle('on', fit);
         $('map-3d').classList.toggle('on', view3d);
+        $('map-fill').classList.toggle('on', fillGaps);
         $('map-grid-wrap').classList.toggle('fit', fit);
         $('map-grid-wrap').hidden = view3d;
         canvas.hidden = !view3d;
@@ -457,6 +491,7 @@
         renderAll();
     });
     $('map-3d').addEventListener('click', () => { view3d = !view3d; renderAll(); });
+    $('map-fill').addEventListener('click', () => { fillGaps = !fillGaps; try { localStorage.setItem('sg_map_fill', fillGaps ? 'on' : 'off'); } catch (_) { } renderAll(); });
 
     // แตะช่อง = เลือก; โหมด "ช่วง" หรือ Shift = ขยายจากช่องเดิม; ลากด้วยเมาส์ = เลือกช่วง
     let dragging = false;
@@ -489,7 +524,7 @@
         setLive('map-live-tps', d.tps, 1);
         setLive('map-live-inj', d.inj, 2);
         setLive('map-live-igt', d.igt, 1);
-        setLive('map-live-afr', d.afr, 1);
+        setLive('map-live-afr', d.afr === null ? null : d.afr, 1);
 
         if (!isFinite(rpm) || !isFinite(tps) || rpm < 500) {
             if (liveCell) { liveCell = null; if (grid.offsetParent || view3d) renderAll(); }
@@ -499,15 +534,17 @@
         if (liveCell && (liveCell.r !== r || liveCell.c !== c)) trail.set(`${liveCell.r},${liveCell.c}`, Date.now());
         liveCell = { r, c };
 
+        // กระจายค่าลง 4 ช่องรอบจุดจริงตามระยะ (bilinear) → ตารางเต็มเร็วขึ้นและเรียบกว่าใส่ช่องเดียว
+        const spots = spread(RPM_BINS, rpm).flatMap(([ri, wr]) => spread(TPS_BINS, tps).map(([ci, wc]) => [ri, ci, wr * wc])).filter(x => x[2] > 0.02);
         let changed = false;
         for (const k of KEYS) {
+            if (d[k] === undefined || d[k] === null || d[k] === '') continue;   // ไม่มีค่าจริง (เช่น AFR ที่กล่องไม่ส่ง) → ไม่บันทึกเป็น 0
             const v = Number(d[k]);
-            if (d[k] === undefined || !isFinite(v)) continue;
-            const cell = logData[k][r][c];
-            cell.sum += v; cell.n++;
+            if (!isFinite(v)) continue;
+            for (const [ri, ci, w] of spots) { const cell = logData[k][ri][ci]; cell.sum += v * w; cell.n += w; }
             changed = true;
         }
-        if (changed) scheduleLogSave();
+        if (changed) { logVersion++; scheduleLogSave(); }
 
         // วาดเฉพาะตอนหน้านี้เปิดอยู่ รวมรอบละ 1 เฟรม
         const visible = (view3d ? canvas.offsetParent : grid.offsetParent) !== null;
@@ -528,6 +565,7 @@
     $('map-reset').addEventListener('click', () => {
         if (!confirm('ล้างค่า Log ที่วัดจาก ESP32 ทั้งหมดหรือไม่? (ค่าที่แก้เองยังอยู่)')) return;
         for (const k of KEYS) logData[k] = blank(() => ({ sum: 0, n: 0 }));
+        logVersion++;
         trail.clear();
         try { localStorage.removeItem(LOG_KEY); } catch (_) { }
         renderAll();
