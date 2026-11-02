@@ -7,16 +7,23 @@ const root = path.join(__dirname, '..');
 const out = path.join(root, 'www');
 
 const FILES = [
-    'index.html', 'style.css', 'script.js', 'log.js', 'ble-transport.js', 'maptable.js', 'gps.js', 'manifest.json',
+    'index.html', 'style.css', 'script.js', 'log.js', 'ble-transport.js', 'maptable.js', 'tuning.js', 'tune-core.js', 'tune-transfer.js', 'tune-workspace.js', 'tune-profiles.js', 'tune-graph.js', 'tuning.css', 'gps.js', 'manifest.json',
     'logo.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'icon-192.svg', 'icon-512.svg',
     'apple-touch-icon.png',
 ];
-const DIRS = ['vendor/swiper'];
+const DIRS = ['vendor/swiper', 'ecu-library'];
 const NODE_FILES = {
     'vendor/capacitor/capacitor.js': 'node_modules/@capacitor/core/dist/capacitor.js',
     'vendor/capacitor/bluetooth-le.js': 'node_modules/@capacitor-community/bluetooth-le/dist/plugin.js',
 };
 
+
+// สร้าง tune-profiles.js จาก ecu-library/*.profile.json ให้หน้า Workspace เปิดได้แม้ไม่มี server (file://)
+{
+    const lib = path.join(root, 'ecu-library'), profiles = {};
+    for (const f of fs.readdirSync(lib).filter(f => f.endsWith('.profile.json'))) profiles[f.replace('.profile.json', '')] = JSON.parse(fs.readFileSync(path.join(lib, f), 'utf8'));
+    fs.writeFileSync(path.join(root, 'tune-profiles.js'), '/* Generated from ecu-library/*.profile.json by scripts/build-www.js — do not edit by hand. Lets the tuning workspace open without a web server (file://). */\nwindow.ATBBProfiles=Object.freeze(' + JSON.stringify(profiles) + ');\n');
+}
 fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(out, { recursive: true });
 
